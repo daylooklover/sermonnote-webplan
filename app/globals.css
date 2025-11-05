@@ -1,0 +1,16 @@
+/* 🚨 Next.js 환경에서 Tailwind CSS를 활성화하는 핵심 지시문입니다. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ----------------------------------------------------- */
+/* 선택 사항: 기본 HTML 요소에 Tailwind 스타일 초기화 적용 */
+/* ----------------------------------------------------- */
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-800 font-sans antialiased;
+  }
+  h1, h2, h3 {
+    @apply font-extrabold tracking-tight;
+  }
+}

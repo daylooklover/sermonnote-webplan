@@ -1,0 +1,76 @@
+/* app/globals.css */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * 프로젝트 전반에 걸쳐 적용할 커스텀 스타일이나
+ * Tailwind의 기본 스타일을 오버라이드할 필요가 있는 경우,
+ * 아래에 추가하세요.
+ */
+
+:root {
+  /* 여기에 커스텀 CSS 변수를 추가할 수 있습니다. */
+}
+/* sermonnote-live의 랜딩 페이지 커스텀 스타일 */
+
+.landing-hero-section {
+  position: relative;
+  width: 100%;
+  height: 100vh; /* 화면 전체 높이로 설정 */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  color: white; /* 텍스트 색상 */
+  
+  /* 배경 이미지 설정 */
+  background-image: url('/images/background.jpg'); 
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* 텍스트 가독성을 위한 배경 오버레이 */
+.landing-hero-section::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5); /* 50% 투명도의 검은색 */
+  z-index: 1; /* 콘텐츠보다 아래에 위치 */
+}
+
+/* 콘텐츠가 오버레이 위에 오도록 z-index 설정 */
+.landing-hero-section > * {
+  z-index: 2;
+  position: relative;
+}
+
+.main-logo {
+  font-size: 4rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+}
+
+.main-slogan {
+  font-size: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+/* 헤더에 사용할 스타일 */
+.site-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 10;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+}
