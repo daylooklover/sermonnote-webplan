@@ -1,25 +1,116 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-
-// --------------------------------------------------
-// 💡 Firebase 임포트 (유지)
-// --------------------------------------------------
+import React, { useState, useEffect, useCallback, createContext, useContext, useRef } from 'react';
 import { initializeApp, getApps, getApp } from 'firebase/app'; 
-import { getAuth, signInAnonymously } from 'firebase/auth';
+import { getAuth, onAuthStateChanged, signInWithCustomToken, signInAnonymously, signOut } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore'; 
 
 // --------------------------------------------------
-// 🚨🚨🚨 모든 외부 임포트 제거 (Module Not Found 방지) 🚨🚨🚨
+// 💡 FIREBASE CONTEXT & AUTH HOOK DEFINITIONS (유지)
 // --------------------------------------------------
-// import SermonSelection from './components/SermonSelection'; // 제거
-// import SermonAssistantComponent from './components/SermonAssistantComponent'; // 제거
-// ...
-// import LoadingSpinner from './components/LoadingSpinner'; // 🚨 제거
-// import LoginModal from './components/LoginModal'; // 🚨 제거
+
+// 🚨 중요: 전역 변수를 사용하여 환경 설정 가져오기 및 Fallback 추가
+const firebaseConfig = (typeof __firebase_config !== 'undefined' && __firebase_config) 
+    ? JSON.parse(__firebase_config) 
+    // 👇 FAKE_API_KEY를 실제 유효한 Firebase API 키로 교체해야 합니다.
+    : { 
+        apiKey: "AIzaSyCpnQe0avt9Rzt69xScI43MyyXxslt6Ff8", // 👈 유효한 키
+        authDomain: "sermonnote-live.firebaseapp.com", 
+        databaseURL: "https://sermonnote-live-default-rtdb.firebaseio.com",
+        projectId: "sermonnote-live",
+        storageBucket: "sermonnote-live.firebasestorage.app",
+        messagingSenderId: "520754190508",
+        appId: "1:520754190508:web:e72b48c3b493d2e63ee709",
+        measurementId: "G-FC7PKSSDP3"
+    }; 
+    
+const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+// 1. Context 생성
+const AuthContext = createContext({
+    user: null,
+    loading: true,
+    auth: null,
+    db: null,
+    authError: null,
+});
+
+// 2. AuthProvider 컴포넌트
+const AuthProvider = ({ children }) => {
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [authInstance, setAuthInstance] = useState(null);
+    const [dbInstance, setDbInstance] = useState(null);
+    const [authError, setAuthError] = useState(null);
+
+    useEffect(() => {
+        if (!firebaseConfig.apiKey || Object.keys(firebaseConfig).length === 0) {
+            console.error("Firebase Config is missing the API Key or is empty.");
+            setAuthError("Firebase 설정 정보가 누락되었습니다. (API Key 확인 필요)");
+            setLoading(false);
+            return;
+        }
+
+        let app;
+        if (getApps().length) {
+            app = getApp(); 
+        } else {
+            app = initializeApp(firebaseConfig);
+        }
+
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        
+        setAuthInstance(auth);
+        setDbInstance(db);
+        
+        let unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
+            setUser(currentUser);
+            setLoading(false);
+            console.log("Auth initialized. User:", currentUser ? currentUser.uid : "Anonymous/None");
+        });
+
+        const signInUser = async () => {
+            try {
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Firebase Authentication Error during sign-in:", error);
+                setAuthError(`로그인 오류: ${error.message}`);
+                setLoading(false); 
+            }
+        };
+
+        signInUser();
+        
+        return () => unsubscribeAuth();
+    }, []); 
+
+    const value = {
+        user,
+        loading,
+        auth: authInstance,
+        db: dbInstance,
+        authError,
+    };
+
+    return (
+        <AuthContext.Provider value={value}>
+            {children}
+        </AuthContext.Provider>
+    );
+};
+
+// 3. useAuth 커스텀 훅
+const useAuth = () => {
+    return useContext(AuthContext);
+};
 
 // --------------------------------------------------
-// 상수 및 번역 헬퍼 (t) 정의 유지
+// 상수 및 번역 헬퍼 (t) 정의 유지 (유지)
 // --------------------------------------------------
 const HERO_BG_COLOR = '#0f1a30'; 
 const BACKGROUND_IMAGE_URL = '/images/background.jpg'; 
@@ -56,6 +147,18 @@ const translations = {
         limitModalDescription: 'AI 설교 초안 생성 횟수 제한에 도달했습니다. 무제한 사용을 위해 프리미엄으로 업그레이드하세요.',
         upgradeButton: '프리미엄 구독',
         closeButton: '닫기',
+        goBack: '뒤로',
+        clearChat: '대화 초기화',
+        sermonAssistantInitialTitle: "AI 설교 도우미",
+        sermonAssistantInitialDescription: "질문을 시작하여 설교 초안을 생성하세요.",
+        askAQuestionToBegin: "아래 입력창에 주제나 성경 구절을 넣어 시작하세요.",
+        startYourSermonConversation: "대화 시작하기",
+        aiIsThinking: "AI가 응답을 생성 중입니다...",
+        sermonAssistantInputPlaceholder: "설교 주제나 질문을 입력하세요...",
+        loginToUseFeature: '로그인이 필요합니다.',
+        confirmClearChat: "대화 내용을 모두 초기화하시겠습니까?",
+        errorProcessingRequest: "요청 처리 중 오류 발생",
+        aiAssistantDefaultResponse: "답변을 받았습니다.",
     },
     en: {
         lang_ko: 'Korean', lang_en: 'English', lang_zh: 'Chinese', lang_ru: 'Russian', lang_vi: 'Vietnamese',
@@ -76,13 +179,25 @@ const translations = {
         limitModalDescription: 'You have reached the free limit for AI sermon draft generation. Upgrade to Premium for unlimited use.',
         upgradeButton: 'Subscribe to Premium',
         closeButton: 'Close',
+        goBack: 'Back',
+        clearChat: 'Clear Chat',
+        sermonAssistantInitialTitle: "AI Sermon Assistant",
+        sermonAssistantInitialDescription: "Start asking questions to generate your sermon draft.",
+        askAQuestionToBegin: "Enter your topic or scripture below to begin.",
+        startYourSermonConversation: "Start Conversation",
+        aiIsThinking: "AI is thinking...",
+        sermonAssistantInputPlaceholder: "Enter your sermon topic or question...",
+        loginToUseFeature: 'Login is required.',
+        confirmClearChat: "Are you sure you want to clear all messages?",
+        errorProcessingRequest: "Error processing request",
+        aiAssistantDefaultResponse: "Received response.",
     }
 };
 const t = (key, lang = 'ko') => translations[lang]?.[key] || translations['ko'][key] || key;
 
 
 // --------------------------------------------------
-// ✅ 헬퍼 컴포넌트 인라인 정의 (Module Not Found 오류 방지)
+// ✅ 헬퍼 및 UI 컴포넌트 인라인 정의 (모두 HomeContent 앞에 배치)
 // --------------------------------------------------
 
 const LoadingSpinner = ({ message = '로딩 중...' }) => (
@@ -135,7 +250,7 @@ const LimitReachedModal = ({ onClose, lang, onGoToUpgrade }) => (
     </div>
 );
 
-// 아이콘 컴포넌트 인라인 정의 (모든 아이콘을 여기에 정의합니다)
+// 아이콘 컴포넌트 인라인 정의 (유지)
 const PlusCircleIcon = (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
 const BibleIcon = (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 2.25V4.5m-8.69 4.31l1.77 1.77M18 10.5h4.5m-5.69 5.69l1.77 1.77M12 21.75V19.5m-8.69-4.31l1.77-1.77M18 13.5h4.5" /><path strokeLinecap="round" strokeLinejoin="round" d="M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>);
 const RealLifeIcon = (props) => (<svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6.75v.008m-7.5 0v.008m7.5 0h-7.5m7.5 0h-7.5m7.5 0v11.25m-7.5-11.25v11.25m7.5 0h-7.5m7.5 0h-7.5m0 0v1.5m7.5-1.5v1.5m0 0h-7.5m7.5 0h-7.5m0 0H6.5a2.25 2.25 0 00-2.25 2.25v.5m17.5-3.5a2.25 2.25 0 00-2.25-2.25H6.5a2.25 2.25 0 00-2.25 2.25v.5m17.5-3.5v.5m-15.75 3.5a2.25 2.25 0 00-2.25 2.25v.5m-1.5-2.75v.5" /></svg>);
@@ -149,7 +264,52 @@ const PremiumIcon = (props) => (<svg {...props} xmlns="http://www.w3.org/2000/sv
 
 
 // --------------------------------------------------
-// 설교 유형 선택 컴포넌트 (SermonSelection) - 인라인 정의
+// ⭐️ RenderLandingPage 정의 (HomeContent보다 위로 이동)
+// --------------------------------------------------
+const RenderLandingPage = ({ onGetStarted, lang, t }) => {
+    // HeroSection, FeaturesSection 정의는 코드 길이상 생략하고 리턴 구문만 유지
+    const HeroSection = () => (
+        <div 
+            className="relative w-full min-h-screen flex flex-col items-center justify-center text-white overflow-hidden mt-[-64px]" 
+            style={{ 
+                backgroundColor: HERO_BG_COLOR, 
+                backgroundImage: `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.7)), url('${BACKGROUND_IMAGE_URL}')`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat',
+            }}
+        >
+            <div className="absolute inset-0 bg-black opacity-30"></div> 
+            <div className="relative text-center max-w-4xl p-8 z-10 pt-[64px]">
+                <h1 style={{ fontSize: '7rem', lineHeight: '1.1', fontWeight: 800 }} className="mb-4 drop-shadow-lg">SermonNote</h1>
+                <p className="text-xl md:text-2xl font-light mb-8 drop-shadow-md">{t('landingSubtitle', lang)}</p>
+                <button onClick={onGetStarted} type="button" className="px-10 py-4 bg-red-600 text-white text-lg font-semibold rounded-lg shadow-lg hover:bg-red-700 transition transform hover:scale-105">{t('start', lang)}</button>
+            </div>
+        </div>
+    );
+    const FeaturesSection = () => (
+        <div className="w-full bg-white py-16 px-8">
+            <div className="max-w-6xl mx-auto">
+                <h2 className="text-3xl md:text-4xl text-center font-bold text-gray-800 mb-12 border-b-2 border-red-500 pb-2">SermonNote가 목회자님께 드리는 혁신적인 혜택</h2>
+                <p className="text-center text-gray-600 mb-12 max-w-3xl mx-auto">바쁜 일상 속에서 깊이 있는 설교를 준비하는 것은 쉽지 않습니다. SermonNote는 최첨단 AI 기술을 활용하여 목회자님의 시간을 절약하고, 더욱 풍성한 말씀으로 성도들을 양육할 수 있도록 돕습니다. 개인 맞춤형 설교 생성부터 전문 연구 관리까지, 모든 과정을 스마트하게 지원합니다.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
+                    {featureItems.map((item, index) => (<div key={index} className="bg-white p-6 rounded-xl shadow-lg border border-gray-200 transition hover:shadow-2xl flex flex-col h-full"><div className="4xl mb-4 text-red-500">{item.icon}</div><h3 className="text-xl font-bold mb-3 text-gray-900">{item.title}</h3><p className="text-gray-600 text-sm flex-1">{item.summary}</p></div>))}
+                </div>
+            </div>
+        </div>
+    );
+
+    return (
+        <div className="w-full min-h-full flex flex-col items-center">
+            <HeroSection />
+            <FeaturesSection />
+        </div>
+    );
+};
+
+
+// --------------------------------------------------
+// 설교 유형 선택 컴포넌트 (SermonSelection) - 인라인 정의 (유지)
 // --------------------------------------------------
 const SermonSelection = ({ 
     user, 
@@ -220,17 +380,279 @@ const SermonSelection = ({
 };
 
 // --------------------------------------------------
-// 설교 유형별 임시 상세 컴포넌트 (인라인 정의)
+// ⭐️ AI 채팅 로직으로 대체된 SermonAssistantComponent (유지)
 // --------------------------------------------------
-// SermonAssistantComponent에는 고급 AI 로직 대신 임시 UI를 사용합니다.
-const SermonAssistantComponent = ({ onGoBack, lang }) => (
-    <div className="w-full min-h-screen bg-white p-12">
-        <h2 className="text-3xl font-bold mb-6 text-blue-600">⚡ 설교 AI 어시스턴트 (임시)</h2>
-        <p className="text-gray-700 mb-8">AI와 대화하며 설교 초안을 작성하는 화면입니다.</p>
-        <button onClick={onGoBack} className="mt-8 px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition">{'<< 설교 유형 선택 화면으로 돌아가기'}</button>
-    </div>
-);
+const generateId = () => Math.random().toString(36).substring(2, 9);
+const CHAT_ENDPOINT = '/api/assistant-chat';
+const API_BASE_URL = ''; 
+const GEMINI_STUDIO_URL = "https://aistudio.google.com/app/apikey";
 
+const MessageComponent = ({ message, lang, onGenerateSermonDraft }) => { 
+    const isUser = message.role === 'user';
+    const content = message.content; 
+    
+    const renderContent = (text) => {
+        if (!text) return null;
+        let html = text.replace(/\n/g, '<br/>');
+        html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        return <div dangerouslySetInnerHTML={{ __html: html }} />;
+    };
+    
+    return (
+        <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
+            <div className={`max-w-[80%] p-3 rounded-xl shadow-md ${
+                isUser 
+                    ? 'bg-indigo-600 text-white' 
+                    : 'bg-gray-700 text-gray-100 dark:bg-gray-800 dark:text-gray-100'
+            }`}>
+                <div className="prose dark:prose-invert max-w-none text-sm leading-relaxed">
+                    {renderContent(content)}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const SermonAssistantComponent = ({ 
+    user, 
+    lang, 
+    onGoBack, 
+    openLoginModal, 
+    sermonCount, 
+    setSermonCount, 
+    onLimitReached,
+    userSubscription
+}) => {
+    
+    const [messages, setMessages] = useState([]);
+    const [currentInput, setCurrentInput] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const messagesEndRef = useRef(null);
+
+    const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
+    useEffect(scrollToBottom, [messages]);
+
+    useEffect(() => {
+        if (messages.length === 0) {
+            setMessages([
+                { id: 'initial', content: t('sermonAssistantInitialDescription', lang) || "안녕하세요! 설교 준비를 도와드릴 AI 어시스턴트입니다. 주제나 구절을 알려주세요.", role: 'assistant' }
+            ]);
+        }
+    }, [messages.length, lang]);
+    
+    const getFullPath = () => {
+        return `${API_BASE_URL}${CHAT_ENDPOINT}`; 
+    }
+    
+    const handleAiResponse = useCallback(async (userMessage) => {
+        if (isLoading || !user) return;
+        
+        setIsLoading(true);
+
+        const fullUrl = getFullPath(); 
+        
+        const newUserMessage = { id: generateId(), content: userMessage, role: 'user' };
+        const loadingMessageId = generateId();
+        
+        const historyForAPI = messages.filter(msg => msg.id !== 'initial' && msg.id !== 'error' && msg.role !== 'error');
+        
+        setMessages(prev => [
+            ...historyForAPI, 
+            newUserMessage, 
+            { id: loadingMessageId, content: t('aiIsThinking', lang) || "AI가 응답을 생성 중입니다...", role: 'assistant' }
+        ]);
+        
+        try {
+            const response = await fetch(fullUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    message: userMessage, 
+                    language_code: lang, 
+                    history: historyForAPI, 
+                    userId: user.uid,
+                    userSubscription: userSubscription,
+                    sermonCount: sermonCount 
+                }), 
+            });
+
+            if (!response.ok) {
+                let errorDetails = t('errorProcessingRequest', lang) || `요청 처리 중 오류 발생 (Status: ${response.status})`;
+                let isAuthError = false;
+                
+                try {
+                    const errorJson = await response.json();
+                    errorDetails = errorJson.response || errorJson.message || JSON.stringify(errorJson);
+                    
+                    if (response.status === 403 || (errorJson.message && errorJson.message.includes('Limit Reached'))) {
+                        onLimitReached(); 
+                        setMessages(prev => prev.filter(msg => msg.id !== loadingMessageId));
+                        return; 
+                    }
+                    
+                    if (response.status === 401 || response.status === 403 || errorDetails.includes('API 키')) {
+                        isAuthError = true;
+                    }
+                } catch (e) {
+                    errorDetails = (t('errorProcessingRequest', lang) || "서버 또는 키 오류가 발생했습니다.") + ` (Status: ${response.status})`;
+                    isAuthError = true; 
+                }
+                
+                setMessages(prev => prev.filter(msg => msg.id !== loadingMessageId));
+                setMessages(prev => [...prev, { id: 'error', content: errorDetails, role: 'assistant', isAuthError: isAuthError }]);
+                return;
+            }
+
+            const data = await response.json();
+            
+            setMessages(prev => prev.filter(msg => msg.id !== loadingMessageId));
+            
+            const aiResponseContent = data.response || (t('aiAssistantDefaultResponse', lang) || "답변을 받았습니다.").replace('{message}', userMessage);
+
+            setMessages(prev => [...prev, { 
+                id: generateId(), 
+                content: aiResponseContent, 
+                role: 'assistant' 
+            }]);
+            
+            if (data.message === 'Success' && setSermonCount) {
+                setSermonCount(prev => prev + 1);
+            }
+
+        } catch (error) {
+            console.error("AI Assistant API Catch Error:", error.message);
+            setMessages(prev => prev.filter(msg => msg.id !== loadingMessageId));
+            setMessages(prev => [...prev, { id: generateId(), content: t('errorProcessingRequest', lang) || "네트워크 오류가 발생했습니다.", role: 'assistant', isAuthError: true }]);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [isLoading, user, messages, lang, userSubscription, sermonCount, user?.uid, getFullPath, setSermonCount, onLimitReached]); // user.uid 추가 수정
+
+    const handleSendClick = () => {
+        if (!user) {
+            openLoginModal();
+            return;
+        }
+        const trimmedInput = currentInput.trim();
+        if (trimmedInput) {
+            setCurrentInput(''); 
+            handleAiResponse(trimmedInput);
+        }
+    };
+    
+    const handleKeyDown = useCallback((e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSendClick();
+        }
+    }, [handleSendClick]);
+    
+    const handleGoToGeminiStudio = () => {
+        window.open(GEMINI_STUDIO_URL, '_blank');
+    };
+
+    const isInitialScreen = messages.length === 0 || (messages.length === 1 && messages[0].id === 'initial');
+    
+    const handleClearChat = () => {
+        if (window.confirm(t('confirmClearChat', lang) || "대화 내용을 모두 초기화하시겠습니까?")) {
+            setMessages([]);
+        }
+    }
+
+
+    return (
+        <div className="flex flex-col h-full min-h-screen bg-gray-100 dark:bg-slate-900">
+            {/* Header and Back Button */}
+            <div className="p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm sticky top-0 z-10 flex justify-between items-center">
+                <button onClick={onGoBack} className="flex items-center text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 transition-colors">
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                    {t('goBack', lang) || '뒤로'} 
+                </button>
+                <button onClick={handleClearChat} className="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 transition">
+                    {t('clearChat', lang) || '대화 초기화'}
+                </button>
+            </div>
+
+            {/* Chat Area */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {isInitialScreen ? (
+                    // ... 초기 화면 로직 (t 함수의 임시 번역 사용)
+                    <div className="flex flex-col items-center justify-center h-full text-center p-8 dark:text-gray-400">
+                        <h1 className="text-4xl lg:text-5xl font-extrabold mb-4 dark:text-white">
+                            {t('sermonAssistantInitialTitle', lang) || "AI 설교 도우미"}
+                        </h1>
+                        <p className="text-lg mb-8">
+                            {t('sermonAssistantInitialDescription', lang) || "질문을 시작하여 설교 초안을 생성하세요."}
+                        </p>
+                        
+                        <div className="p-8 bg-gray-200 dark:bg-gray-700 rounded-xl shadow-inner max-w-md w-full">
+                            <p className="mb-4 font-semibold dark:text-gray-200">{t('askAQuestionToBegin', lang) || "아래 입력창에 주제나 성경 구절을 넣어 시작하세요."}</p>
+                            <button
+                                onClick={() => setMessages(prev => prev.filter(msg => msg.id !== 'initial'))} 
+                                className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition"
+                            >
+                                {t('startYourSermonConversation', lang) || "대화 시작하기"}
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    messages.map((message) => (
+                        <div key={message.id}>
+                            <MessageComponent message={message} lang={lang} />
+                            
+                            {/* 💡 오류 메시지 아래에 '키 확인' 버튼 노출 */}
+                            {message.id === 'error' && message.isAuthError && (
+                                <div className="flex justify-center mt-2">
+                                    <button 
+                                        onClick={handleGoToGeminiStudio}
+                                        className="px-4 py-2 text-sm bg-yellow-500 text-gray-900 font-semibold rounded-lg hover:bg-yellow-400 transition"
+                                    >
+                                        Gemini API 키 확인 / 발급
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    ))
+                )}
+                <div ref={messagesEndRef} />
+            </div>
+
+            {/* Input Area */}
+            <div className="p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 sticky bottom-0 z-10">
+                <div className="flex items-center space-x-3 max-w-2xl mx-auto">
+                    <input
+                        type="text"
+                        value={currentInput}
+                        onChange={(e) => setCurrentInput(e.target.value)}
+                        onKeyDown={handleKeyDown} 
+                        placeholder={isLoading ? (t('aiIsThinking', lang) || "생각 중...") : (t('sermonAssistantInputPlaceholder', lang) || "설교 주제나 질문을 입력하세요...")}
+                        disabled={isLoading || !user}
+                        className="flex-1 p-3 rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow disabled:opacity-50"
+                    />
+                    <button
+                        onClick={handleSendClick}
+                        disabled={isLoading || !currentInput.trim() || !user}
+                        className={`p-3 rounded-full transition-colors ${
+                            isLoading || !currentInput.trim() || !user 
+                                ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed' 
+                                : 'bg-indigo-600 hover:bg-indigo-700'
+                        }`}
+                    >
+                        {/* Send Icon */}
+                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                    </button>
+                </div>
+                {!user && (
+                    <p className="text-xs text-red-500 text-center mt-2">{t('loginToUseFeature', lang) || '로그인이 필요합니다.'}</p>
+                )}
+            </div>
+        </div>
+    );
+}
+
+// --------------------------------------------------
+// 설교 유형별 임시 상세 컴포넌트 (인라인 정의 - 유지)
+// --------------------------------------------------
 const ExpositorySermonComponent = ({ onGoBack }) => (
     <div className="w-full min-h-screen bg-white p-12">
         <h2 className="text-3xl font-bold mb-6 text-green-600">📖 강해 설교 (임시)</h2>
@@ -281,119 +703,15 @@ const PremiumSubscriptionPage = ({ onGoBack }) => (
     </div>
 );
 
-
 // --------------------------------------------------
-// useAuth Hook (유지)
-// --------------------------------------------------
-const useAuth = () => {
-    const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [auth, setAuth] = useState(null);
-    const [db, setDb] = useState(null);
-    const [authError, setAuthError] = useState('');
-
-    useEffect(() => {
-        let app;
-        try {
-            const firebaseConfig = {
-                apiKey: "AIzaSyCpnQe0avt9Rzt69xScI43MyyXxslt6Ff8",
-                authDomain: "sermonnote-live.firebaseapp.com",
-                databaseURL: "https://sermonnote-live-default-rtdb.firebaseio.com", 
-                projectId: "sermonnote-live",
-                storageBucket: "sermonnote-live.firebasestorage.app",
-                messagingSenderId: "520754190508",
-                appId: "1:520754190508:web:e72b48c3b493d2e63ee709",
-                measurementId: "G-FC7PKSSDP3"
-            };
-            
-            if (getApps().length) {
-                app = getApp(); 
-            } else {
-                app = initializeApp(firebaseConfig); 
-            }
-
-            const authInstance = getAuth(app);
-            const dbInstance = getFirestore(app);
-
-            setAuth(authInstance);
-            setDb(dbInstance);
-
-            signInAnonymously(authInstance)
-                .then((userCredential) => {
-                    setUser(userCredential.user);
-                    setAuthError('');
-                })
-                .catch((error) => {
-                    console.error("Firebase Auth Error:", error);
-                    setAuthError("익명 로그인 실패. Firebase 권한을 확인해주세요.");
-                })
-                .finally(() => {
-                    setLoading(false);
-                });
-
-        } catch (e) {
-            console.error("Firebase Init/Operation Fatal Error:", e);
-            setAuthError("치명적인 Firebase 초기화 오류가 발생했습니다.");
-            setLoading(false);
-        }
-    }, []);
-
-    return { user, loading, auth, db, authError };
-};
-
-// --------------------------------------------------
-// 랜딩 페이지 컴포넌트 (유지)
-// --------------------------------------------------
-const RenderLandingPage = ({ onGetStarted, lang, t }) => {
-    // HeroSection, FeaturesSection 정의는 코드 길이상 생략하고 리턴 구문만 유지
-    const HeroSection = () => (
-        <div 
-            className="relative w-full min-h-screen flex flex-col items-center justify-center text-white overflow-hidden mt-[-64px]" 
-            style={{ 
-                backgroundColor: HERO_BG_COLOR, 
-                backgroundImage: `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.7)), url('${BACKGROUND_IMAGE_URL}')`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                backgroundRepeat: 'no-repeat',
-            }}
-        >
-            <div className="absolute inset-0 bg-black opacity-30"></div> 
-            <div className="relative text-center max-w-4xl p-8 z-10 pt-[64px]">
-                <h1 style={{ fontSize: '7rem', lineHeight: '1.1', fontWeight: 800 }} className="mb-4 drop-shadow-lg">SermonNote</h1>
-                <p className="text-xl md:text-2xl font-light mb-8 drop-shadow-md">{t('landingSubtitle', lang)}</p>
-                <button onClick={onGetStarted} type="button" className="px-10 py-4 bg-red-600 text-white text-lg font-semibold rounded-lg shadow-lg hover:bg-red-700 transition transform hover:scale-105">{t('start', lang)}</button>
-            </div>
-        </div>
-    );
-    const FeaturesSection = () => (
-        <div className="w-full bg-white py-16 px-8">
-            <div className="max-w-6xl mx-auto">
-                <h2 className="text-3xl md:text-4xl text-center font-bold text-gray-800 mb-12 border-b-2 border-red-500 pb-2">SermonNote가 목회자님께 드리는 혁신적인 혜택</h2>
-                <p className="text-center text-gray-600 mb-12 max-w-3xl mx-auto">바쁜 일상 속에서 깊이 있는 설교를 준비하는 것은 쉽지 않습니다. SermonNote는 최첨단 AI 기술을 활용하여 목회자님의 시간을 절약하고, 더욱 풍성한 말씀으로 성도들을 양육할 수 있도록 돕습니다. 개인 맞춤형 설교 생성부터 전문 연구 관리까지, 모든 과정을 스마트하게 지원합니다.</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
-                    {featureItems.map((item, index) => (<div key={index} className="bg-white p-6 rounded-xl shadow-lg border border-gray-200 transition hover:shadow-2xl flex flex-col h-full"><div className="4xl mb-4 text-red-500">{item.icon}</div><h3 className="text-xl font-bold mb-3 text-gray-900">{item.title}</h3><p className="text-gray-600 text-sm flex-1">{item.summary}</p></div>))}
-                </div>
-            </div>
-        </div>
-    );
-
-    return (
-        <div className="w-full min-h-full flex flex-col items-center">
-            <HeroSection />
-            <FeaturesSection />
-        </div>
-    );
-};
-
-
-// --------------------------------------------------
-// 메인 컴포넌트: Home
+// 메인 컴포넌트: Home (Provider를 사용하도록 변경)
 // --------------------------------------------------
 
-export default function Home() {
+function HomeContent() {
+    // ⭐️ Context Provider가 Home을 감싸므로, useAuth를 여기서 호출
     const { user, loading, auth, db, authError } = useAuth(); 
 
-    // 상태 정의
+    // 상태 정의 (유지)
     const [sermonCount, setSermonCount] = useState(0); 
     const [userSubscription, setUserSubscription] = useState('free'); 
     const [isLimitModalOpen, setIsLimitModalOpen] = useState(false);
@@ -401,7 +719,7 @@ export default function Home() {
     const [viewMode, setViewMode] = useState('landing'); 
     const [selectedSermonType, setSelectedSermonType] = useState('sermon-selection'); 
     const [lang, setLang] = useState('ko');
-    const isFirebaseError = authError.includes("Firebase"); 
+    const isFirebaseError = authError ? authError.includes("Firebase") : false; 
     
     // 핸들러 정의 (유지)
     const openLoginModal = () => setIsLoginModalOpen(true);
@@ -421,7 +739,7 @@ export default function Home() {
     }, []);
     const handleLogout = useCallback(() => { 
         if (auth) { 
-            auth.signOut();
+            signOut(auth); // Firebase signOut 함수 사용
             setViewMode('landing'); 
             setSelectedSermonType('sermon-selection'); 
             setSermonCount(0); 
@@ -469,7 +787,6 @@ export default function Home() {
                         onGoToLanding={() => setViewMode('landing')}
                     />
                 );
-            // ✅ 인라인 정의된 컴포넌트 사용 
             case 'ai-assistant-sermon':
                 return <SermonAssistantComponent {...commonProps} />;
             case 'expository-sermon':
@@ -579,5 +896,17 @@ export default function Home() {
                 <QuickMemoIcon className="w-6 h-6" />
             </button>
         </div>
+    );
+}
+
+
+// --------------------------------------------------
+// ⭐️ export default: HomeContent를 AuthProvider로 감싸서 export
+// --------------------------------------------------
+export default function Home() {
+    return (
+        <AuthProvider>
+            <HomeContent />
+        </AuthProvider>
     );
 }
