@@ -1,27 +1,97 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+"use client";
+
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+// import { doc, deleteDoc } from 'firebase/firestore'; // 주석 처리: 이 컴포넌트가 완전한 파일이 아님을 가정
 
 // -------------------------------------------------------------------------
-// 🚨🚨🚨 임시 수정 사항 🚨🚨🚨
-// Module not found 오류 해결을 위해, import { supabase } from '@/lib/supabase' 대신
-// 더미 객체를 임시로 정의하여 컴파일을 통과하도록 합니다.
+// DUMMY 컴포넌트 및 객체 정의 (실제 DB 연결 코드를 대체)
 // -------------------------------------------------------------------------
 
-// SermonDetailPage이 이 파일에 정의되지 않아 import 오류를 일으킬 수 있으므로
-// SermonDetailPage과 SermonCreatePage에 대한 더미 컴포넌트를 정의합니다.
-const SermonDetailPage = () => <div>설교 상세 페이지 (임시)</div>;
+// SermonDetailPage과 SermonCreatePage에 대한 더미 컴포넌트 (파일 구조 유지를 위함)
+const SermonDetailPage = ({ onBack, onEdit, onDelete, sermon, user, lang, t }) => (
+    <div className="p-8 max-w-4xl mx-auto bg-white rounded-xl shadow-lg min-h-[50vh]">
+        <h2 className="text-3xl font-bold text-gray-800">{sermon.title}</h2>
+        <p className="text-gray-600 mt-2">{t('sermonBody', lang)}: {sermon.body ? sermon.body.substring(0, 300) + '...' : '내용 없음'}</p>
+        
+        <div className="mt-6 space-x-2">
+            <button onClick={onBack} className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">{t('goBack', lang)}</button>
+            <button onClick={() => onEdit(sermon)} className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">{t('editSermon', lang)}</button>
+            <button onClick={() => onDelete(sermon.id)} className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">{t('deleteSermon', lang)}</button>
+        </div>
+    </div>
+);
+
 const SermonCreatePage = ({ onComplete, onCancel, sermonToEdit, isEditMode, user, lang, t }) => {
-    // SermonDetailPage에서 사용될 수 있으므로 T 함수는 전달해야 합니다.
-    return <div>설교 생성/수정 페이지 (임시)</div>;
+    // 임시 상태 및 DB 저장 로직 (더미)
+    const [title, setTitle] = useState(sermonToEdit?.title || '');
+    const [preacher, setPreacher] = useState(sermonToEdit?.preacher || (user ? user.uid.substring(0, 8) : ''));
+    const [source, setSource] = useState(sermonToEdit?.source || '');
+    const [body, setBody] = useState(sermonToEdit?.body || '');
+    const [isSaving, setIsSaving] = useState(false);
+
+    const handleSave = async () => {
+        if (!title.trim() || !preacher.trim() || !body.trim()) {
+            alert(t('alertFillRequired', lang));
+            return;
+        }
+        setIsSaving(true);
+        console.log("Saving Sermon:", { title, preacher, source, body });
+
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
+
+        setIsSaving(false);
+        onComplete();
+    };
+
+    return (
+        <div className="p-4 sm:p-8 max-w-4xl mx-auto bg-white rounded-xl shadow-lg min-h-[60vh]">
+            <h2 className="text-3xl font-bold text-indigo-700 mb-6">{isEditMode ? t('editSermon', lang) : t('uploadSermon', lang)}</h2>
+            
+            <div className="space-y-4">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('sermonTitle', lang)}</label>
+                    <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder={t('sermonTitle', lang)} className="w-full p-3 border rounded-lg" disabled={isSaving} />
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('preacher', lang)}</label>
+                        <input type="text" value={preacher} onChange={e => setPreacher(e.target.value)} placeholder={t('preacher', lang)} className="w-full p-3 border rounded-lg" disabled={isSaving} />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('sourceLabel', lang)}</label>
+                        <input type="text" value={source} onChange={e => setSource(e.target.value)} placeholder={t('sourcePlaceholder', lang)} className="w-full p-3 border rounded-lg" disabled={isSaving} />
+                    </div>
+                </div>
+                
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('sermonBody', lang)}</label>
+                    <textarea value={body} onChange={e => setBody(e.target.value)} rows="10" placeholder={t('sermonBodyPlaceholder', lang)} className="w-full p-3 border rounded-lg resize-y" disabled={isSaving}></textarea>
+                </div>
+            </div>
+            
+            <div className="flex justify-end space-x-4 mt-8">
+                <button onClick={onCancel} className="px-6 py-3 bg-gray-300 text-gray-800 rounded-xl font-semibold hover:bg-gray-400 transition" disabled={isSaving}>
+                    {t('cancel', lang)}
+                </button>
+                <button onClick={handleSave} className="px-6 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition" disabled={isSaving || !title.trim() || !preacher.trim() || !body.trim()}>
+                    {isSaving ? `${t('saving', lang)}...` : (isEditMode ? t('saveChanges', lang) : t('saveSermon', lang))}
+                </button>
+            </div>
+            {isSaving && <p className="text-center text-blue-600 mt-4">{t('saving', lang)}...</p>}
+        </div>
+    );
 };
 
-// Supabase 관련 로직을 임시로 주석 처리했으므로, 
-// fetchSermons 내부에서 사용되는 supabase 객체의 오류를 막기 위해 더미 객체를 생성합니다.
+
+// Supabase 더미 객체 (실제 DB 연결 코드를 대체)
 const supabase = { 
     from: () => ({ 
         select: () => ({ eq: () => ({ order: () => ({ data: [], error: null }) }) }),
         delete: () => ({ eq: () => ({ eq: () => ({ error: null }) }) }),
     })
 };
+
 
 // 뷰 상태 상수 정의
 const VIEW_STATES = {
@@ -31,42 +101,19 @@ const VIEW_STATES = {
     SERMON_DETAIL: 'SERMON_DETAIL',
 };
 
-// 다국어 지원 함수 (생략되지 않도록 포함)
-const t = (key, lang = 'ko') => {
-    const translations = {
-        ko: {
-            rebirthSermonTitle: '설교의 재탄생: 영감의 서고', uploadSermon: '명설교 아카이브에 기록하기', goBack: '뒤로 가기',
-            preacher: '설교자', date: '날짜', sourceLabel: '출처', noSavedSermons: '아카이브에 등록된 설교가 없습니다.',
-            searchPlaceholder: '제목, 설교자로 검색', 
-            sermonFetchError: '설교 목록을 불러오는 중 오류가 발생했습니다. 권한 설정을 확인하거나 테이블 이름을 확인하세요.', 
-            deleteSermon: '설교 삭제', like: '좋아요', aiReinterpretation: 'AI 재해석', editSermon: '수정하기',
-            sermonListLoading: '설교 목록을 불러오는 중입니다...', latest: '최신순', likes: '인기순 (공감)', reinterpretationCount: '재해석순', 
-            loginRequiredTitle: '로그인이 필요합니다.', loginRequiredMessage: '설교 아카이브를 보거나 기능을 사용하려면 먼저 로그인을 해주세요.',
-            viewCount: '조회수', sermonBody: '설교 본문', cancel: '취소', 
-            sermonTitle: '설교 제목', sourcePlaceholder: '예: 설교노트, 강해집, 개인 묵상',
-            sermonBodyPlaceholder: '여기에 설교 전체 본문을 입력하십시오.',
-            saving: '저장 중...', saveChanges: '변경 사항 저장', saveSermon: '설교 저장',
-            alertFillRequired: '제목, 설교자, 본문은 필수 입력 사항입니다.',
-            saveError: '설교 저장 중 오류가 발생했습니다.',
-            deleteConfirm: '정말로 이 설교를 삭제하시겠습니까?',
-        },
-        en: { /* ... (영문 번역 생략) ... */ }, 
-    };
-    return translations[lang]?.[key] || translations['ko'][key] || key;
-};
 
 // ----------------------------------------------------
-// SermonListItem 컴포넌트 (RebirthSermonFeature 전에 배치)
+// SermonListItem 컴포넌트
 // ----------------------------------------------------
-const SermonListItem = ({ sermon, onSelect, onEdit }) => {
+const SermonListItem = ({ sermon, onSelect, onEdit, lang, t }) => { 
     const formatDate = (timestamp) => {
-        if (!timestamp) return '날짜 미정';
+        if (!timestamp) return t('dateUncertain', lang) || '날짜 미정'; // 다국어 적용
         const date = new Date(timestamp); 
         if (isNaN(date)) {
             const fallbackDate = new Date(Number(timestamp) * 1000);
-            return isNaN(fallbackDate) ? '날짜 오류' : fallbackDate.toLocaleDateString('ko-KR');
+            return isNaN(fallbackDate) ? t('dateError', lang) || '날짜 오류' : fallbackDate.toLocaleDateString(lang === 'ko' ? 'ko-KR' : 'en-US');
         }
-        return date.toLocaleDateString('ko-KR');
+        return date.toLocaleDateString(lang === 'ko' ? 'ko-KR' : 'en-US');
     };
 
     return (
@@ -77,7 +124,7 @@ const SermonListItem = ({ sermon, onSelect, onEdit }) => {
             <div className="flex-1 min-w-0">
                 <h3 className="text-lg font-bold text-gray-800 truncate">{sermon.title}</h3>
                 <p className="text-sm text-gray-600 truncate mt-1">
-                    {sermon.preacher} · {formatDate(sermon.created_at || sermon.createdAt)}
+                    {t('preacher', lang)}: {sermon.preacher} · {formatDate(sermon.created_at || sermon.createdAt)}
                 </p>
             </div>
             <div className="flex space-x-2 ml-4">
@@ -88,7 +135,7 @@ const SermonListItem = ({ sermon, onSelect, onEdit }) => {
                     }}
                     className="p-2 text-sm text-indigo-600 hover:text-indigo-800 rounded-md bg-indigo-50 hover:bg-indigo-100 transition"
                 >
-                    수정
+                    {t('editSermon', lang)} 
                 </button>
             </div>
         </div>
@@ -96,21 +143,26 @@ const SermonListItem = ({ sermon, onSelect, onEdit }) => {
 };
 
 
+// ----------------------------------------------------
 // RebirthSermonFeature 메인 컴포넌트
-const RebirthSermonFeature = ({ user, lang = 'ko' }) => {
+// ----------------------------------------------------
+const RebirthSermonFeature = ({ user, lang = 'ko', t, onGoBack }) => { // 🚨 FIX 1: onGoBack prop 받기
     // ----------------------------------------------------
     // 1. 상태 변수 정의
     // ----------------------------------------------------
     const [currentView, setCurrentView] = useState(VIEW_STATES.LIST);
-    const [sermons, setSermons] = useState([]); // 서버에서 불러온 전체 설교 목록
+    // 🚨 임시 더미 데이터로 초기화 (테스트용)
+    const [sermons, setSermons] = useState([
+        { id: 1, title: '믿음으로 말미암아 의롭다 함을 얻었나니', preacher: '사도 바울', created_at: Date.now(), like_count: 5, reinterpretation_count: 2, body: 'Sample content 1: 로마서 5:1절 말씀을 기반으로 한 강해 설교입니다.' },
+        { id: 2, title: '그리스도 안에서 새롭게', preacher: 'J. Smith', created_at: Date.now() - 86400000, like_count: 10, reinterpretation_count: 5, body: 'Sample content 2: 고린도후서 5:17절을 중심으로 한 설교입니다.' }
+    ]);
     const [sermonToEdit, setSermonToEdit] = useState(null);
     const [selectedSermon, setSelectedSermon] = useState(null);
-    const [isLoading, setIsLoading] = useState(true); 
+    const [isLoading, setIsLoading] = useState(false); // 더미 데이터 사용 시 false로 시작
     const [fetchError, setFetchError] = useState(null); 
     const [searchTerm, setSearchTerm] = useState('');
     const [sortType, setSortType] = useState('latest');
 
-    // Supabase의 테이블 이름을 'sermon_notes'로 가정합니다.
     const SERMON_TABLE = 'sermon_notes'; 
     const isUserLoggedIn = !!user;
 
@@ -123,45 +175,23 @@ const RebirthSermonFeature = ({ user, lang = 'ko' }) => {
         if (!user) {
             console.log("User 객체 부재. 설교 패치 건너뜀.");
             setIsLoading(false);
-            setSermons([]); // 로그아웃 시 목록 비우기
+            // setSermons([]); // 임시 데이터를 위해 주석 처리
             return;
         }
 
         setIsLoading(true); 
+        // 실제 Supabase 로직은 제거하고 더미 데이터 로딩 시간만 시뮬레이션
+        await new Promise(resolve => setTimeout(resolve, 500));
+        setIsLoading(false);
 
-        try {
-            // 🚨🚨🚨 Supabase 호출 로직을 임시로 주석 처리하고 더미 데이터를 반환합니다.
-            // const { data, error } = await supabase
-            //     .from(SERMON_TABLE)
-            //     .select('*')
-            //     .eq('user_id', user.id) // Supabase user 객체의 ID 필드는 'id'입니다.
-            //     .order('created_at', { ascending: false });
-
-            // if (error) {
-            //     throw error;
-            // }
-
-            // setSermons(data);
-            
-            // 🚨 임시: 에러 우회를 위해 빈 배열을 반환합니다.
-            setSermons([]);
-
-
-        } catch (error) {
-            console.error("🔥 Error fetching sermons: ", error.message);
-            setFetchError(error.message); // 에러 메시지를 상태에 저장
-            alert(`${t('sermonFetchError', lang)}\n상세: ${error.message}`); 
-        } finally {
-            setIsLoading(false); 
-        }
-    }, [user, lang]);
+    }, [user]); // t를 의존성 배열에서 제거: fetchSermons는 데이터를 가져오는 역할에 집중
 
     // ----------------------------------------------------
     // 3. Effect Hooks (데이터 로드)
     // ----------------------------------------------------
     useEffect(() => {
-        fetchSermons();
-    }, [fetchSermons]);
+        // fetchSermons(); // 초기 로딩을 방지하기 위해 주석 처리 (더미 데이터 사용 시)
+    }, []); // fetchSermons를 의존성 배열에서 제거: 더미 데이터 사용
 
     // ----------------------------------------------------
     // 4. 필터링 및 정렬 로직 (클라이언트 측 정렬 유지)
@@ -197,7 +227,7 @@ const RebirthSermonFeature = ({ user, lang = 'ko' }) => {
         }
         setSermonToEdit(null);
         setCurrentView(VIEW_STATES.SERMON_CREATE); 
-    }, [isUserLoggedIn, lang]); 
+    }, [isUserLoggedIn, lang, t]); 
 
     const handleGoToDetail = useCallback((sermon) => {
         setSelectedSermon(sermon);
@@ -226,23 +256,15 @@ const RebirthSermonFeature = ({ user, lang = 'ko' }) => {
         
         try {
             // 🚨🚨🚨 Supabase 삭제 로직을 임시로 주석 처리합니다.
-            // const { error } = await supabase
-            //     .from(SERMON_TABLE)
-            //     .delete()
-            //     .eq('id', sermonId)
-            //     .eq('user_id', user.id); 
-
-            // if (error) {
-            //     throw error;
-            // }
-
-            alert("설교가 성공적으로 삭제되었습니다.");
-            fetchSermons(); // 삭제 후 목록 새로고침
+            
+            alert(t('sermonDeletionSuccess', lang) || "설교가 성공적으로 삭제되었습니다."); // 다국어 적용
+            setSermons(prev => prev.filter(s => s.id !== sermonId)); // 로컬 더미 삭제
+            // fetchSermons(); // 삭제 후 목록 새로고침 (더미 데이터 사용 시 주석 처리)
         } catch (error) {
             console.error("🔥 Error deleting sermon: ", error.message);
-            alert(`설교 삭제 중 오류가 발생했습니다. 권한 또는 상세 에러 메시지를 확인하세요.\n에러: ${error.message}`);
+            alert(`${t('sermonDeletionError', lang) || "설교 삭제 중 오류가 발생했습니다."}\n에러: ${error.message}`); // 다국어 적용
         }
-    }, [user, lang, fetchSermons]);
+    }, [user, lang, t]); 
 
 
     // ----------------------------------------------------
@@ -259,7 +281,7 @@ const RebirthSermonFeature = ({ user, lang = 'ko' }) => {
                 sermonToEdit={sermonToEdit}
                 isEditMode={isEditMode}
                 lang={lang}
-                t={t}
+                t={t} // 🚨 FIX 4: t prop 전달
             />
         );
     }
@@ -273,34 +295,36 @@ const RebirthSermonFeature = ({ user, lang = 'ko' }) => {
                 onDelete={handleDeleteSermon}
                 user={user}
                 lang={lang}
-                t={t}
+                t={t} // 🚨 FIX 4: t prop 전달
             />
         );
     }
 
+    // 🚨 LIST 뷰 렌더링
     return (
-        <div className="p-4 md:p-8 max-w-6xl mx-auto bg-white shadow-2xl rounded-xl">
-            {/* 상단 제목 및 버튼 영역 */}
+        <div className="p-4 md:p-8 max-w-6xl mx-auto bg-white shadow-2xl rounded-xl min-h-[70vh]">
+            
+            {/* 🚨 FIX: 뒤로가기 버튼 (상단) 🚨 */}
             <div className="flex justify-between items-center mb-6">
+                <button 
+                    onClick={onGoBack} 
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition font-semibold flex items-center space-x-1"
+                >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                    <span>{t('goBack', lang)}</span>
+                </button>
+                
                 <h1 className="text-3xl font-extrabold text-indigo-700">
                     {t('rebirthSermonTitle', lang)}
                 </h1>
-                {currentView === VIEW_STATES.LIST ? (
-                    <button 
-                        onClick={handleGoToCreate} 
-                        className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-bold shadow-lg flex items-center space-x-1"
-                        disabled={!isUserLoggedIn}
-                    >
-                        + {t('uploadSermon', lang)}
-                    </button>
-                ) : (
-                    <button 
-                        onClick={handleGoBack} 
-                        className="px-4 py-2 bg-gray-300 rounded-xl hover:bg-gray-400 transition font-semibold"
-                    >
-                        {t('goBack', lang)}
-                    </button>
-                )}
+
+                <button 
+                    onClick={handleGoToCreate} 
+                    className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-bold shadow-lg flex items-center space-x-1"
+                    disabled={!isUserLoggedIn}
+                >
+                    + {t('uploadSermon', lang)}
+                </button>
             </div>
 
             {/* 검색 및 정렬 영역 */}
@@ -349,8 +373,8 @@ const RebirthSermonFeature = ({ user, lang = 'ko' }) => {
                 
                 {filteredSermons.length === 0 && !isLoading && isUserLoggedIn && !fetchError && (
                     <div className="flex flex-col items-center mt-12">
-                            <p className="text-xl text-gray-500">{t('noSavedSermons', lang)}</p>
-                            <p className="text-sm text-gray-400 mt-2">(우측 상단의 '+ 명설교 아카이브에 기록하기' 버튼을 이용해주세요.)</p>
+                        <p className="text-xl text-gray-500">{t('noSavedSermons', lang)}</p>
+                        <p className="text-sm text-gray-400 mt-2">(우측 상단의 '+ 명설교 아카이브에 기록하기' 버튼을 이용해주세요.)</p>
                     </div>
                 )}
 
@@ -362,6 +386,8 @@ const RebirthSermonFeature = ({ user, lang = 'ko' }) => {
                                 sermon={sermon} 
                                 onSelect={handleGoToDetail} 
                                 onEdit={handleGoToEdit} 
+                                lang={lang} 
+                                t={t} 
                             />
                         ))}
                     </div>

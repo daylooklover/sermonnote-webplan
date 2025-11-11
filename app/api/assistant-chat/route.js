@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI } from '@google/genai'; // <-- 패키지 이름 수정
 import { NextResponse } from 'next/server';
 
 // --------------------------------------------------

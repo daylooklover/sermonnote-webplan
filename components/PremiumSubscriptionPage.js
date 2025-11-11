@@ -30,7 +30,7 @@ const annualDiscountPremium = 0.20; // 20% off for $576/year (vs $720)
 
 
 // Plan data definition
-// 🚨 lang prop을 받아 다국어 처리를 합니다.
+// 🚨 t, lang을 매개변수로 명시적으로 받습니다.
 const plans = (setShowModal, t, lang) => [ 
     {
         // 🚨 다국어 적용
@@ -40,9 +40,9 @@ const plans = (setShowModal, t, lang) => [
         // 🚨 다국어 적용
         description: t('freePlanDescription', lang) || 'Try SermonNote\'s basic features for free.',
         features: [
-            // 🚨 다국어 적용 (변수 치환 필요)
-            t('sermonGenTimes', lang, { 0: 5 }) || 'Sermon Generation 5 times/month', 
-            t('aiAnnotationTimes', lang, { 0: 5 }) || 'AI Annotation 5 times/month',
+            // 🚨 다국어 적용 (변수 치환)
+            t('sermonGenTimes', lang).replace('{0}', 5) || 'Sermon Generation 5 times/month', 
+            t('aiAnnotationTimes', lang).replace('{0}', 5) || 'AI Annotation 5 times/month',
             t('textEditor', lang) || 'Text Editor',
         ],
         // 🚨 다국어 적용
@@ -60,9 +60,9 @@ const plans = (setShowModal, t, lang) => [
         // 🚨 다국어 적용
         description: t('standardPlanDescription', lang) || 'Provides core features to enhance sermon preparation efficiency.',
         features: [
-            // 🚨 다국어 적용
-            t('sermonGenTimes', lang, { 0: 100 }) || 'Sermon Generation 100 times/month', 
-            t('aiAnnotationTimes', lang, { 0: 100 }) || 'AI Annotation 100 times/month',
+            // 🚨 다국어 적용 (변수 치환)
+            t('sermonGenTimes', lang).replace('{0}', 100) || 'Sermon Generation 100 times/month', 
+            t('aiAnnotationTimes', lang).replace('{0}', 100) || 'AI Annotation 100 times/month',
             t('advancedTextEditor', lang) || 'Advanced AI Text Editor',
             t('limitedSupport', lang) || 'Priority Tech Support (limited)',
         ],
@@ -149,8 +149,8 @@ const PremiumSubscriptionPage = ({ onGoBack, t, lang }) => {
                 {/* 🚨 다국어 적용 */}
                 <span className={`text-sm font-semibold transition-colors ${isAnnual ? 'text-blue-400' : 'text-gray-400'}`}>
                     {t('annually', lang) || 'Annually'}
-                    {/* 🚨 다국어 적용 (변수 치환 필요) */}
-                    <span className="text-xs text-yellow-400 font-bold ml-1 hidden sm:inline">({t('saveUpTo', lang, { 0: 20 }) || 'SAVE UP TO 20%'})</span>
+                    {/* 🚨 다국어 적용 (변수 치환) */}
+                    <span className="text-xs text-yellow-400 font-bold ml-1 hidden sm:inline">({t('saveUpTo', lang).replace('{0}', 20) || 'SAVE UP TO 20%'})</span>
                 </span>
             </div>
 
@@ -161,8 +161,8 @@ const PremiumSubscriptionPage = ({ onGoBack, t, lang }) => {
                         : plan.monthlyPrice;
 
                     const periodDisplay = isAnnual && plan.annualPrice !== 'Free' 
-                        ? '/year' 
-                        : (plan.monthlyPrice !== 'Free' ? '/month' : '');
+                        ? `/${t('year', lang) || 'year'}` 
+                        : (plan.monthlyPrice !== 'Free' ? `/${t('month', lang) || 'month'}` : '');
 
                     return (
                         <div 
@@ -193,10 +193,10 @@ const PremiumSubscriptionPage = ({ onGoBack, t, lang }) => {
                             {/* 연간 할인 정보 표시 */}
                             <p className="text-sm text-gray-400 mb-6">
                                 {isAnnual && plan.annualPrice !== 'Free' 
-                                    // 🚨 다국어 적용 (변수 치환 필요)
-                                    ? t('saveVsMonthly', lang, { 0: plan.annualDiscountRate }) || `Save ${plan.annualDiscountRate}% (vs. monthly)` 
-                                    // 🚨 다국어 적용 (변수 치환 필요)
-                                    : (plan.monthlyPrice !== 'Free' ? t('billedAnnualy', lang, { 0: plan.monthlyPriceValue * 12 }) || `Billed ${plan.monthlyPriceValue * 12} $/year` : '\u00a0')}
+                                    // 🚨 다국어 적용 (변수 치환)
+                                    ? t('saveVsMonthly', lang).replace('{0}', plan.annualDiscountRate) || `Save ${plan.annualDiscountRate}% (vs. monthly)` 
+                                    // 🚨 다국어 적용 (변수 치환)
+                                    : (plan.monthlyPrice !== 'Free' ? t('billedAnnualy', lang).replace('{0}', plan.monthlyPriceValue * 12) || `Billed ${plan.monthlyPriceValue * 12} $/year` : '\u00a0')}
                             </p>
                             
                             <div className="flex-grow">

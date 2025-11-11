@@ -1,17 +1,17 @@
-// --------------------------------------------------
-// 설교 유형별 임시 상세 컴포넌트 (인라인 정의)
-// --------------------------------------------------
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 // DUMMY ID 생성 함수 (인라인 정의)
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
-// API 호출 상수 (Next.js 환경에서 사용)
+// API 호출 상수 
 const CHAT_ENDPOINT = '/api/assistant-chat';
 const API_BASE_URL = ''; // 상대 경로 사용
 const GEMINI_STUDIO_URL = "https://aistudio.google.com/app/apikey";
 
+// 🚨 임시 t 함수 제거! 이 컴포넌트는 t와 lang을 props로 받습니다. 🚨
+
 // 💡 MessageComponent (마크다운 처리 포함)
-const MessageComponent = ({ message, lang, onGenerateSermonDraft }) => { 
+const MessageComponent = ({ message, lang }) => { 
     const isUser = message.role === 'user';
     const content = message.content; 
     
@@ -41,7 +41,8 @@ const MessageComponent = ({ message, lang, onGenerateSermonDraft }) => {
 // 💡 SermonAssistantComponent 정의 (고급 AI 채팅 로직)
 const SermonAssistantComponent = ({ 
     user, 
-    lang, 
+    lang, // 🚨 FIX 1: props로 lang과 t를 명시적으로 받습니다.
+    t,    // 🚨 FIX 1: t 함수를 prop으로 받습니다.
     onGoBack, 
     openLoginModal, 
     sermonCount, 
@@ -53,20 +54,27 @@ const SermonAssistantComponent = ({
     const [messages, setMessages] = useState([]);
     const [currentInput, setCurrentInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const messagesEndRef = React.useRef(null);
+    const messagesEndRef = useRef(null);
 
     // 자동 스크롤 로직
     const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
-    useEffect(scrollToBottom, [messages]);
+    // messages 또는 lang이 변경될 때 초기 메시지를 다시 설정해야 하므로 lang을 추가합니다.
+    useEffect(scrollToBottom, [messages]); 
 
-    // 컴포넌트 마운트 시 초기 메시지 설정 (t 함수의 임시 번역 사용)
+    // 컴포넌트 마운트 시 초기 메시지 설정
     useEffect(() => {
-        if (messages.length === 0) {
-            setMessages([
-                { id: 'initial', content: t('sermonAssistantInitialDescription', lang) || "안녕하세요! 설교 준비를 도와드릴 AI 어시스턴트입니다. 주제나 구절을 알려주세요.", role: 'assistant' }
-            ]);
+        // lang이 변경될 때마다 초기 메시지를 현재 언어로 다시 설정합니다.
+        const initialMessage = { 
+            id: 'initial', 
+            content: t('sermonAssistantInitialDescription', lang), 
+            role: 'assistant' 
+        };
+        
+        if (messages.length === 0 || messages[0].id === 'initial') {
+            setMessages([initialMessage]);
         }
-    }, [messages.length, lang]);
+    }, [lang]); // 🚨 lang이 변경될 때마다 초기화되도록 수정
+
     
     // API 호출 경로 생성
     const getFullPath = () => {
@@ -75,6 +83,7 @@ const SermonAssistantComponent = ({
     
     // API 호출 및 응답 처리
     const handleAiResponse = useCallback(async (userMessage) => {
+        // user가 없으면 AI 호출 방지 (UI에서 이미 처리되지만 안전을 위해 유지)
         if (isLoading || !user) return;
         
         setIsLoading(true);
@@ -91,7 +100,7 @@ const SermonAssistantComponent = ({
         setMessages(prev => [
             ...historyForAPI, 
             newUserMessage, 
-            { id: loadingMessageId, content: t('aiIsThinking', lang) || "AI가 응답을 생성 중입니다...", role: 'assistant' }
+            { id: loadingMessageId, content: t('aiIsThinking', lang), role: 'assistant' }
         ]);
         
         // 2. API 호출
@@ -101,7 +110,7 @@ const SermonAssistantComponent = ({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     message: userMessage, 
-                    language_code: lang, 
+                    language_code: lang, // 🚨 FIX 2: AI가 해당 언어로 응답하도록 언어 코드 전달
                     history: historyForAPI, 
                     userId: user.uid,
                     userSubscription: userSubscription,
@@ -142,7 +151,7 @@ const SermonAssistantComponent = ({
             // 4. 로딩 메시지 제거 후 실제 응답 추가
             setMessages(prev => prev.filter(msg => msg.id !== loadingMessageId));
             
-            const aiResponseContent = data.response || (t('aiAssistantDefaultResponse', lang) || "답변을 받았습니다.").replace('{message}', userMessage);
+            const aiResponseContent = data.response || t('aiAssistantDefaultResponse', lang); // t 함수는 이제 prop으로 사용
 
             setMessages(prev => [...prev, { 
                 id: generateId(), 
@@ -162,7 +171,7 @@ const SermonAssistantComponent = ({
         } finally {
             setIsLoading(false);
         }
-    }, [isLoading, user, messages, lang, userSubscription, sermonCount, user.uid, getFullPath, setSermonCount, onLimitReached]);
+    }, [isLoading, user, messages, lang, userSubscription, sermonCount, getFullPath, setSermonCount, onLimitReached, t]); // 🚨 t를 의존성 배열에 추가
 
 
     const handleSendClick = () => {
@@ -193,7 +202,7 @@ const SermonAssistantComponent = ({
     
     // 대화 내용 초기화
     const handleClearChat = () => {
-        if (confirm(t('confirmClearChat', lang) || "대화 내용을 모두 초기화하시겠습니까?")) {
+        if (confirm(t('confirmClearChat', lang))) { // t 함수 사용
             setMessages([]);
         }
     }
@@ -205,32 +214,32 @@ const SermonAssistantComponent = ({
             <div className="p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm sticky top-0 z-10 flex justify-between items-center">
                 <button onClick={onGoBack} className="flex items-center text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 transition-colors">
                     <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-                    {t('goBack', lang) || '뒤로'} 
+                    {t('goBack', lang)} 
                 </button>
                 <button onClick={handleClearChat} className="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 transition">
-                    {t('clearChat', lang) || '대화 초기화'}
+                    {t('clearChat', lang)}
                 </button>
             </div>
 
             {/* Chat Area */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {isInitialScreen ? (
-                    // ... 초기 화면 로직 (t 함수의 임시 번역 사용)
+                    // ... 초기 화면 로직
                     <div className="flex flex-col items-center justify-center h-full text-center p-8 dark:text-gray-400">
                         <h1 className="text-4xl lg:text-5xl font-extrabold mb-4 dark:text-white">
-                            {t('sermonAssistantInitialTitle', lang) || "AI 설교 도우미"}
+                            {t('sermonAssistantInitialTitle', lang)}
                         </h1>
                         <p className="text-lg mb-8">
-                            {t('sermonAssistantInitialDescription', lang) || "질문을 시작하여 설교 초안을 생성하세요."}
+                            {t('sermonAssistantInitialDescription', lang)}
                         </p>
                         
                         <div className="p-8 bg-gray-200 dark:bg-gray-700 rounded-xl shadow-inner max-w-md w-full">
-                            <p className="mb-4 font-semibold dark:text-gray-200">{t('askAQuestionToBegin', lang) || "아래 입력창에 주제나 성경 구절을 넣어 시작하세요."}</p>
+                            <p className="mb-4 font-semibold dark:text-gray-200">{t('askAQuestionToBegin', lang)}</p>
                             <button
                                 onClick={() => setMessages(prev => prev.filter(msg => msg.id !== 'initial'))} 
                                 className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition"
                             >
-                                {t('startYourSermonConversation', lang) || "대화 시작하기"}
+                                {t('startYourSermonConversation', lang)}
                             </button>
                         </div>
                     </div>
@@ -264,7 +273,7 @@ const SermonAssistantComponent = ({
                         value={currentInput}
                         onChange={(e) => setCurrentInput(e.target.value)}
                         onKeyDown={handleKeyDown} 
-                        placeholder={isLoading ? (t('aiIsThinking', lang) || "생각 중...") : (t('sermonAssistantInputPlaceholder', lang) || "설교 주제나 질문을 입력하세요...")}
+                        placeholder={isLoading ? t('aiIsThinking', lang) : t('sermonAssistantInputPlaceholder', lang)}
                         disabled={isLoading || !user}
                         className="flex-1 p-3 rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow disabled:opacity-50"
                     />
@@ -282,61 +291,14 @@ const SermonAssistantComponent = ({
                     </button>
                 </div>
                 {!user && (
-                    <p className="text-xs text-red-500 text-center mt-2">{t('loginToUseFeature', lang) || '로그인이 필요합니다.'}</p>
+                    <p className="text-xs text-red-500 text-center mt-2">{t('loginToUseFeature', lang)}</p>
                 )}
             </div>
         </div>
     );
 }
+
 // --------------------------------------------------
-// ExpositorySermonComponent, RealLifeSermonComponent 등 나머지 컴포넌트 코드는 유지
+// ✅ Default Export로 변경
 // --------------------------------------------------
-const ExpositorySermonComponent = ({ onGoBack }) => (
-    <div className="w-full min-h-screen bg-white p-12">
-        <h2 className="text-3xl font-bold mb-6 text-green-600">📖 강해 설교 (임시)</h2>
-        <p className="text-gray-700 mb-8">특정 성경 본문을 심층 분석하여 구조화된 설교를 작성하는 화면입니다.</p>
-        <button onClick={onGoBack} className="mt-8 px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition">{'<< 설교 유형 선택 화면으로 돌아가기'}</button>
-    </div>
-);
-
-const RealLifeSermonComponent = ({ onGoBack }) => (
-    <div className="w-full min-h-screen bg-white p-12">
-        <h2 className="text-3xl font-bold mb-6 text-red-600">🍎 삶과 연결된 설교 (임시)</h2>
-        <p className="text-gray-700 mb-8">현실적인 삶의 문제와 성경적 해답을 연결하는 설교를 준비하는 화면입니다.</p>
-        <button onClick={onGoBack} className="mt-8 px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition">{'<< 설교 유형 선택 화면으로 돌아가기'}</button>
-    </div>
-);
-
-const QuickMemoSermonComponent = ({ onGoBack }) => (
-    <div className="w-full min-h-screen bg-white p-12">
-        <h2 className="text-3xl font-bold mb-6 text-yellow-600">✍️ 빠른 메모 설교 (임시)</h2>
-        <p className="text-gray-700 mb-8">떠오른 짧은 영감이나 묵상 메모를 빠르게 설교 형태로 확장하는 화면입니다.</p>
-        <button onClick={onGoBack} className="mt-8 px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition">{'<< 설교 유형 선택 화면으로 돌아가기'}</button>
-    </div>
-);
-
-const RebirthSermonFeature = ({ onGoBack }) => (
-    <div className="w-full min-h-screen bg-white p-12">
-        <h2 className="text-3xl font-bold mb-6 text-purple-600">🔄 설교의 재탄생 (임시)</h2>
-        <p className="text-gray-700 mb-8">기존 설교 파일을 업로드하여 AI를 통해 재구성하고 업데이트하는 화면입니다.</p>
-        <button onClick={onGoBack} className="mt-8 px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition">{'<< 설교 유형 선택 화면으로 돌아가기'}</button>
-    </div>
-);
-
-const PremiumSubscriptionPage = ({ onGoBack }) => (
-    <div className="w-full min-h-screen bg-gray-50 p-12 flex flex-col items-center">
-        <div className="max-w-xl text-center bg-white p-10 rounded-xl shadow-2xl border-t-4 border-yellow-500">
-            <h2 className="text-4xl font-extrabold mb-4 text-yellow-700">👑 프리미엄으로 업그레이드 (임시)</h2>
-            <p className="text-lg text-gray-700 mb-6">프리미엄 구독을 통해 모든 기능을 무제한으로 사용하세요.</p>
-            <button className="w-full px-8 py-3 bg-yellow-500 text-white text-xl font-bold rounded-lg hover:bg-yellow-600 transition transform hover:scale-105">
-                지금 프리미엄 시작하기
-            </button>
-            <button 
-                onClick={onGoBack} 
-                className="mt-6 text-sm text-gray-500 hover:text-gray-800 transition"
-            >
-                {'<< 설교 유형 선택 화면으로 돌아가기'}
-            </button>
-        </div>
-    </div>
-);
+export default SermonAssistantComponent;

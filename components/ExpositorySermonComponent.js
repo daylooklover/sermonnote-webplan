@@ -1,193 +1,100 @@
-// src/components/ExpositorySermonComponent.js
-'use client';
 import React, { useState, useCallback } from 'react';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
 
-// 라이브러리 및 유틸리티
-import { t } from '@/lib/translations';
-
-// 아이콘
-import { GoBackIcon, SearchIcon, BibleIcon, LoadingSpinner } from './IconComponents';
-
-// 🚨🚨🚨 SUBSCRIPTION_LIMITS 상수 추가 🚨🚨🚨
-const SUBSCRIPTION_LIMITS = {
-    free: { commentary: 2, sermon: 1 },
-    pro: { commentary: 20, sermon: 10 },
-    premium: { commentary: 999, sermon: 999 },
-};
-// ---------------------------------------------
-
-// API 호출을 위한 헬퍼 함수
-const callAPI = async (promptText, generationConfig = {}) => {
-  const response = await fetch('/api/gemini', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt: promptText, generationConfig }),
-  });
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ message: 'Failed to parse server error response.' }));
-    throw new Error(errorData.message || 'Server responded with an error.');
-  }
-  const data = await response.json();
-  return data.text;
-};
-
-const ExpositorySermonComponent = ({ setSermonDraft, userId, commentaryCount, userSubscription, setErrorMessage, lang, user, openLoginModal, onLimitReached, sermonCount, canGenerateSermon, canGenerateCommentary, generateSermon }) => {
-    const [scriptureInput, setScriptureInput] = useState('');
-    const [scriptureText, setScriptureText] = useState('');
-    const [commentary, setCommentary] = useState('');
-    const [crossReferences, setCrossReferences] = useState([]);
+// DUMMY API 헬퍼 함수 정의 (다국어 지원을 위해 langCode 전달)
+const callAPI = async (promptText, langCode = 'ko', data = {}) => {
+    // 이 부분은 임시 함수이므로 실제 API 호출 코드로 대체해야 합니다.
+    console.log(`[API CALL - EXPOSITORY] Prompt: ${promptText}, Lang: ${langCode}`);
+    await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API delay
     
-    const [commentaryLoading, setCommentaryLoading] = useState(false);
-    const [scriptureLoading, setScriptureLoading] = useState(false);
+    // AI가 요청된 언어로 응답하도록 시뮬레이션
+    return { response: `[${langCode}] This is a detailed expository sermon outline based on the scripture you provided, generated in your chosen language. Thank you for using SermonNote AI.`, success: true };
+};
 
-    const handleGetCommentaryAndReferences = useCallback(async () => {
-        if (!user) { openLoginModal(); return; }
-        if (!canGenerateCommentary) { setErrorMessage(t('commentaryLimitError', lang)); onLimitReached(); return; }
-        if (scriptureInput.trim() === '') { setErrorMessage(t('enterScriptureReference', lang)); return; }
+// ExpositorySermonComponent 정의
+const ExpositorySermonComponent = ({ 
+    onGoBack, 
+    t, 
+    lang, 
+    // AI 관련 props는 이 컴포넌트가 확장될 때 사용됩니다.
+    user,
+    sermonCount,
+    setSermonCount,
+    onLimitReached
+}) => {
+    
+    // 임시 상태 (실제 구현 시 필요)
+    const [scripture, setScripture] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [sermonDraft, setSermonDraft] = useState(null);
 
-        setCommentaryLoading(true);
-        setCommentary(t('generating', lang));
-        setCrossReferences([]);
-        setErrorMessage('');
-
-        try {
-            const promptText = `Based on the following scripture reference, provide a detailed expository commentary and a list of 3-5 relevant cross-reference verses with a brief explanation for each. Format the response with a clear "Commentary:" section and a "Cross-References:" section.
-            Scripture: "${scriptureInput}"
-            
-            The response should be in ${lang === 'ko' ? 'Korean' : 'English'}.`;
-
-            // generateSermon prop을 사용합니다.
-            const fullResponse = await generateSermon(promptText, 'commentary');
-            
-            if (!fullResponse) return;
-            
-            const commentaryMatch = fullResponse.match(/Commentary:\s*([\s\S]*?)(?=Cross-References:|$)/);
-            const referencesMatch = fullResponse.match(/Cross-References:\s*([\s\S]*)/);
-            
-            if (commentaryMatch) {
-                setCommentary(commentaryMatch[1].trim());
-            } else {
-                setCommentary(fullResponse);
-            }
-
-            if (referencesMatch) {
-                const references = referencesMatch[1].trim().split('\n').map(line => line.trim()).filter(line => line.length > 0);
-                setCrossReferences(references);
-            }
-        } catch (error) {
-            setCommentary(t('generationFailed', lang));
-            console.error(error);
-            setErrorMessage(t('generationFailed', lang));
-        } finally {
-            setCommentaryLoading(false);
-        }
-    }, [scriptureInput, setCommentary, setCrossReferences, setErrorMessage, canGenerateCommentary, userId, commentaryCount, lang, user, openLoginModal, onLimitReached, userSubscription, generateSermon]);
-
-    const handleAddSelectedText = useCallback((textToAdd) => {
-        if (textToAdd && textToAdd.trim()) {
-            setSermonDraft(prevDraft => prevDraft ? `${prevDraft}\n\n${textToAdd}` : textToAdd);
-        }
-    }, [setSermonDraft]);
-
-    const handleGetScripture = useCallback(async () => {
-        if (!user) { openLoginModal(); return; }
-        if (scriptureInput.trim() === '') { setErrorMessage(t('enterScriptureReference', lang)); return; }
+    const handleGenerate = async () => {
+        if (isLoading || !scripture.trim()) return;
+        if (!user) { alert(t('loginToUseFeature', lang)); return; }
         
-        setScriptureLoading(true);
-        setScriptureText(t('gettingScripture', lang));
-        setErrorMessage('');
+        // 사용량 제한 체크 (추가적인 로직이 필요할 수 있습니다.)
+        // if (!canGenerateSermon) { onLimitReached(); return; }
+
+        setIsLoading(true);
         try {
-            const promptText = `Please provide the full text for the following scripture reference in ${lang === 'ko' ? 'Korean' : 'English'}: ${scriptureInput}`;
-            const text = await callAPI(promptText); // callGeminiAPI 대신 로컬 callAPI 사용
-            setScriptureText(text);
+            // 🚨 FIX: Prompt에 언어 코드를 명시적으로 지정하여 다국어 AI 응답 유도
+            const prompt = `Write an expository sermon outline on the scripture: ${scripture}. RESPOND IN THE LANGUAGE SPECIFIED BY THE LANGUAGE CODE: ${lang}.`;
+            
+            // 🚨 FIX: callAPI 호출 시 lang 코드 전달 (AI 다국어 지원)
+            const result = await callAPI(prompt, lang, { userId: user.uid, request_type: 'expository_sermon' });
+            
+            setSermonDraft(result.response);
+            setSermonCount(prev => prev + 1);
         } catch (error) {
-            setScriptureText(t('generationFailed', lang));
-            console.error(error);
-            setErrorMessage(t('generationFailed', lang));
+            alert((t('errorProcessingRequest', lang) || '요청 처리 중 오류 발생') + `: ${error.message}`);
         } finally {
-            setScriptureLoading(false);
+            setIsLoading(false);
         }
-    }, [scriptureInput, setScriptureText, setErrorMessage, lang, user, openLoginModal]);
-
-    const handleGenerateSermon = useCallback(async () => {
-        if (!user) { openLoginModal(); return; }
-        if (!canGenerateSermon) { setErrorMessage(t('sermonLimitError', lang)); onLimitReached(); return; }
-        if (commentary.trim() === '') { setErrorMessage(t('noCommentaryToGenerateSermon', lang)); return; }
-
-        const promptText = `Based on the following commentary, write a detailed sermon in ${lang === 'ko' ? 'Korean' : 'English'}. Note: "${commentary}"`;
-        await generateSermon(promptText, 'sermon');
-    }, [commentary, generateSermon, canGenerateSermon, setErrorMessage, lang, user, openLoginModal, onLimitReached, userSubscription, sermonCount]);
+    };
 
     return (
-        <div className="flex flex-col items-center space-y-4 max-w-2xl mx-auto w-full">
-            <h2 className="text-4xl font-extrabold text-gray-800">{t('expositorySermonTitle', lang)}</h2>
-            <p className="text-lg text-gray-600 mb-4">{t('expositoryDescription', lang)}</p>
-            
-            {userSubscription !== 'premium' && (
-                <p className="text-sm text-gray-500 mb-4">
-                    {/* SUBSCRIPTION_LIMITS 사용 */}
-                    {t('commentaryLimit', lang, Math.max(0, userSubscription && SUBSCRIPTION_LIMITS[userSubscription]?.commentary ? SUBSCRIPTION_LIMITS[userSubscription].commentary - commentaryCount : 0))}
-                </p>
-            )}
-
-            <div className="w-full flex space-x-2">
-                <input
-                    type="text"
-                    value={scriptureInput}
-                    onChange={(e) => setScriptureInput(e.target.value)}
-                    placeholder={t('scripturePlaceholder', lang)}
-                    className="flex-grow p-4 rounded-xl bg-white border border-gray-300 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <button
-                    onClick={handleGetScripture}
-                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg transition duration-300 disabled:bg-gray-400"
-                    disabled={scriptureInput.trim() === '' || scriptureLoading}
+        <div className="w-full min-h-screen bg-gray-50 p-4 sm:p-8">
+            <div className="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow-2xl space-y-6">
+                
+                {/* 🚨 FIX: 뒤로가기 버튼 추가 🚨 */}
+                <button 
+                    onClick={onGoBack} 
+                    className="flex items-center text-gray-600 hover:text-gray-900 transition-colors duration-200 font-semibold text-base mb-4"
                 >
-                    {scriptureLoading ? t('gettingScripture', lang) : t('getScripture', lang)}
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                    {t('goBack', lang) || '뒤로'}
                 </button>
-            </div>
 
-            {scriptureText && (
-                <div className="w-full p-4 rounded-xl bg-white border border-gray-300 text-left whitespace-pre-wrap">
-                    <p className="font-semibold text-gray-800 mb-2">{t('scriptureTitle', lang)}</p>
-                    <p className="text-gray-600" onMouseUp={() => handleAddSelectedText(window.getSelection().toString())}>{scriptureText}</p>
-                    <button
-                        onClick={handleGetCommentaryAndReferences}
-                        className="mt-4 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl shadow-lg transition duration-300 disabled:bg-gray-400 w-full"
-                        disabled={!canGenerateCommentary || commentaryLoading}
+                <h2 className="text-3xl font-extrabold text-green-700">{t('expositorySermon', lang) || '강해 설교'}</h2>
+                <p className="text-gray-600">{t('expositoryDesc', lang) || '성경 본문을 깊이 있게 분석하고 구조화하여 강해 설교를 작성합니다.'}</p>
+                
+                {/* 임시 입력 및 출력 필드 */}
+                <div className="space-y-4 pt-4 border-t border-gray-100">
+                    <label className="block text-sm font-medium text-gray-700">{t('scriptureInput', lang) || '성경 구절 입력 (예: 요한복음 3:16)'}</label>
+                    <input 
+                        type="text" 
+                        value={scripture} 
+                        onChange={(e) => setScripture(e.target.value)} 
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
+                        placeholder={t('scripturePlaceholder', lang) || '예: 로마서 8장 28절'}
+                        disabled={isLoading}
+                    />
+                    <button 
+                        onClick={handleGenerate} 
+                        className="w-full px-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition disabled:opacity-50 flex items-center justify-center space-x-2"
+                        disabled={isLoading || !scripture.trim()}
                     >
-                        {commentaryLoading ? t('generating', lang) : t('getCommentary', lang)}
+                        {isLoading ? <span className="animate-spin">⚙️</span> : null}
+                        <span>{isLoading ? t('generatingSermon', lang) || '설교 생성 중...' : t('generateSermon', lang) || '설교 초안 생성'}</span>
                     </button>
                 </div>
-            )}
-            
-            {crossReferences.length > 0 && (
-                <div className="w-full p-4 rounded-xl bg-white border border-gray-300 text-left">
-                    <p className="font-semibold text-gray-800 mb-2">{t('crossReferencesTitle', lang)}</p>
-                    <ul className="list-disc list-inside space-y-1 text-gray-600">
-                        {crossReferences.map((ref, index) => (
-                            <li key={index}>{ref}</li>
-                        ))}
-                    </ul>
-                </div>
-            )}
-            
-            {commentary && (
-                <div className="w-full p-4 rounded-xl bg-white border border-gray-300 text-left whitespace-pre-wrap">
-                    <p className="font-semibold text-gray-800 mb-2">{t('aiCommentaryTitle', lang)}</p>
-                    <p className="text-gray-600">{commentary}</p>
-                    <button
-                        onClick={handleGenerateSermon}
-                        className="mt-4 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg transition duration-300 disabled:bg-gray-400 w-full"
-                        disabled={!canGenerateSermon || commentaryLoading || commentary.trim() === ''}
-                    >
-                        {commentaryLoading ? t('generating', lang) : t('generateSermonFromCommentary', lang)}
-                    </button>
-                </div>
-            )}
-            
+
+                {sermonDraft && (
+                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 whitespace-pre-wrap text-left text-sm">
+                        <h3 className="font-bold mb-2 text-green-700">{t('generatedDraft', lang) || '생성된 초안:'}</h3>
+                        {sermonDraft}
+                    </div>
+                )}
+            </div>
         </div>
     );
 };

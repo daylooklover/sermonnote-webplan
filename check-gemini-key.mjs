@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // YOUR_API_KEY 부분에 실제 Gemini API 키를 입력하세요.
-const API_KEY = "AIzaSyCpnQe0avt9Rzt69xScI43MyyXxslt6Ff8";
+const API_KEY = "";
 
 async function run() {
   try {

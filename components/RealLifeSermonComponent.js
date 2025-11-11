@@ -1,19 +1,17 @@
 "use client";
 
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-// 모든 필요한 아이콘을 임포트합니다. (이 컴포넌트에는 사용되지 않으므로 주석 처리하거나 제거 가능)
-// import { LoadingSpinner, GoBackIcon, PrintIcon, ZoomInIcon, ZoomOutIcon, FullscreenIcon, CloseIcon } from './IconComponents'; 
-import { t } from '../lib/translations'; 
+// t 함수는 props로 받으므로, 이 import는 필요 없습니다. (주석 처리 또는 제거 유지)
+// import { t } from '../lib/translations'; 
 
 // ----------------------------------------------------------------------
-// 🟢 API 호출 헬퍼 함수 정의 (JSON 안정화를 위해 구조 변경) 🟢
+// 🟢 API 호출 헬퍼 함수 정의 🟢
 // ----------------------------------------------------------------------
-// promptText와 langCode 외에, userId, request_type 등이 포함된 data 객체를 받습니다.
 const callAPI = async (promptText, langCode = 'ko', data = {}) => {
     const payload = {
         question: promptText, // /api/assistant-chat의 입력 필드
         language_code: langCode,
-        // 🚨 critical fix: userId, request_type 등 모든 데이터 필드를 여기에 병합 🚨
+        // critical fix: userId, request_type 등 모든 데이터 필드를 여기에 병합
         ...data 
     };
 
@@ -34,7 +32,6 @@ const callAPI = async (promptText, langCode = 'ko', data = {}) => {
         throw new Error(errorData.response || errorData.message || `Server responded with status ${response.status}.`);
     }
     
-    // 🚨 중복 선언 오류 수정: 'data' -> 'responseData'로 변경
     const responseData = await response.json(); 
     
     // assistant-chat API는 'response' 필드를 반환하므로, 그에 맞게 조정
@@ -46,11 +43,12 @@ const callAPI = async (promptText, langCode = 'ko', data = {}) => {
 // ----------------------------------------------------------------------
 const RecommendationResults = ({ recommendations, inputTopic, onSelect, onBack, t, lang, isLoading }) => {
     
-    // ⭐⭐ 수정: 선택된 추천 항목을 내부 상태로 관리합니다. ⭐⭐
+    // ⭐⭐ t 함수를 props로 받고 있습니다. (정상) ⭐⭐
     const [selectedRec, setSelectedRec] = useState(null); 
 
     return (
         <div className="space-y-6 p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200">
+            {/* 뒤로가기 버튼: t 함수를 사용하여 텍스트 번역 */}
             <button onClick={onBack} className="flex items-center text-indigo-500 mb-4 hover:text-indigo-400 transition-colors" disabled={isLoading}>
                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
                 {t('backToInput', lang) || "입력 화면으로 돌아가기"}
@@ -71,7 +69,6 @@ const RecommendationResults = ({ recommendations, inputTopic, onSelect, onBack, 
                 {recommendations.map((rec, index) => (
                     <button
                         key={index}
-                        // ⭐ 수정: 클릭 시 selectedRec 상태 업데이트 ⭐
                         onClick={() => setSelectedRec(rec)}
                         className={`w-full p-4 text-left rounded-lg transition border-2 ${
                             selectedRec?.scripture === rec.scripture 
@@ -89,8 +86,6 @@ const RecommendationResults = ({ recommendations, inputTopic, onSelect, onBack, 
 
             {/* 최종 생성 버튼 */}
             <button
-                // ⭐ 수정: onSelect 호출 시 selectedRec을 인수로 전달 ⭐
-                // ⭐ 수정: selectedRec이 null이 아닐 때만 버튼이 활성화되도록 함 ⭐
                 onClick={() => onSelect(selectedRec)}
                 disabled={!selectedRec || isLoading} 
                 className="w-full py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition disabled:opacity-50"
@@ -105,20 +100,21 @@ const RecommendationResults = ({ recommendations, inputTopic, onSelect, onBack, 
 // ----------------------------------------------------------------------
 // 🟢 Main Component: RealLifeSermonComponent (Step 1 & State Management) 🟢
 // ----------------------------------------------------------------------
-const RealLifeSermonComponent = ({
+const RealLifeSermonComponent = ({ // 🚨 FIX: 유효한 함수 매개변수 정의 시작
     user,
     lang,
-    t,
+    t, // t 함수를 상위 컴포넌트로부터 props로 받고 있습니다.
     onGoBack,
     openLoginModal,
     setSermonInput,
     sermonCount,
     userSubscription,
-    onLimitReached, 
+    onLimitReached,
     canGenerateSermon,
     setSermonCount,
-    ...commonProps
-}) => {
+    ...commonProps // 나머지 props
+}) => { // 🚨 FIX: 유효한 함수 정의 끝
+
     
     const [step, setStep] = useState(1); 
     const [topic, setTopic] = useState('');
@@ -150,6 +146,7 @@ const RealLifeSermonComponent = ({
         if (step === 1) {
             
             if (!topic.trim()) {
+                // FIX: t 함수를 props에서 가져와 사용합니다. 
                 alert(t('enterTopic', lang) || "주제를 입력해 주세요.");
                 return;
             }
@@ -195,6 +192,7 @@ const RealLifeSermonComponent = ({
                     }
                 } catch (jsonError) {
                     console.error("Failed to parse JSON response:", cleanResponse);
+                    // FIX: t 함수를 props에서 가져와 사용합니다. 
                     throw new Error(t('invalidApiResponse', lang) || "AI 응답 형식이 올바르지 않습니다. 서버 로그를 확인하세요. (JSON 파싱 오류)");
                 }
 
@@ -202,6 +200,7 @@ const RealLifeSermonComponent = ({
                 setStep(2); // 🟢 Step 2 (추천 결과 화면)로 전환 🟢
                 
             } catch (error) {
+                // FIX: t 함수를 props에서 가져와 사용합니다. 
                 alert(t('recommendationFailed', lang) || `AI 추천을 받는 중 오류가 발생했습니다: ${error.message}`);
             } finally {
                 setIsLoading(false);
@@ -232,6 +231,7 @@ const RealLifeSermonComponent = ({
                 setShowSuccess(true); 
                 
             } catch (error) {
+                // FIX: t 함수를 props에서 가져와 사용합니다. 
                 alert(t('sermonGenerationFailed', lang) || `설교 생성 중 오류가 발생했습니다: ${error.message}`);
             } finally {
                 setIsLoading(false);
@@ -278,7 +278,7 @@ const RealLifeSermonComponent = ({
                         inputTopic={topic}
                         onSelect={handleSermonGeneration} 
                         onBack={handleBackToInput} 
-                        t={t}
+                        t={t} // 👈 t 함수 전달
                         lang={lang}
                         isLoading={isLoading}
                     />
@@ -293,10 +293,15 @@ const RealLifeSermonComponent = ({
         <div className="flex flex-col items-center w-full min-h-screen bg-gray-100 text-gray-800 p-8">
             <div className="max-w-3xl w-full">
                 
-                {/* 뒤로가기 버튼 */}
-                <button onClick={onGoBack} className="flex items-center text-indigo-600 hover:text-indigo-700 transition-colors mb-6" disabled={isLoading}>
+                {/* 뒤로가기 버튼 (오류 발생 가능성 부분 - 이미지 306줄과 유사) */}
+                <button 
+                    onClick={onGoBack} 
+                    className="flex items-center text-indigo-600 hover:text-indigo-700 transition-colors mb-6" 
+                    disabled={isLoading}
+                >
                     <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-                    {t('goBack', lang)}
+                    {/* 🚨 FIX: t 함수를 prop으로 사용 🚨 */}
+                    {t('goBack', lang)} 
                 </button>
 
                 <h1 className="text-3xl font-extrabold mb-8 text-center text-indigo-700">
