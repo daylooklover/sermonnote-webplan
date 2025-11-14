@@ -1,19 +1,25 @@
-import { GoogleGenAI } from '@google/genai'; // <-- 패키지 이름 수정
+import { GoogleGenAI } from '@google/genai';
 import { NextResponse } from 'next/server';
 
 // --------------------------------------------------
 // 🚨 중요: Gemini API 키를 환경 변수에서 로드
 // --------------------------------------------------
-// Next.js는 NEXT_PUBLIC_ 접두사가 없는 환경 변수를 서버에서 사용합니다.
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY; 
 
 if (!GEMINI_API_KEY) {
     console.error("GEMINI_API_KEY is not set in environment variables.");
 }
 
+// Next.js 서버 환경에서만 실행되므로 키가 안전합니다.
 const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 const CHAT_MODEL = "gemini-2.5-flash";
 const FREE_USAGE_LIMIT = 5; // 무료 사용자는 5회로 제한 (임시)
+
+// --------------------------------------------------
+// ✨ Caching Layer: 인메모리 캐시 (서버리스 함수 재사용 시 유지됨)
+// --------------------------------------------------
+const responseCache = new Map();
+const CACHE_TTL = 3600000; // 1시간 (3600000ms) 동안 캐시 유지
 
 // --------------------------------------------------
 // 시스템 메시지: AI의 역할 정의
@@ -44,7 +50,7 @@ export async function POST(request) {
             );
         }
 
-        // 2. 사용 제한 검사 (무료 사용자 및 사용 횟수가 제한을 초과했는지)
+        // 2. 사용 제한 검사
         if (userSubscription === 'free' && sermonCount >= FREE_USAGE_LIMIT) {
             return NextResponse.json(
                 { response: `무료 사용 한도(${FREE_USAGE_LIMIT}회)에 도달했습니다. 프리미엄으로 업그레이드하세요.`, message: "Limit Reached" },
@@ -52,8 +58,27 @@ export async function POST(request) {
             );
         }
 
+        // --------------------------------------------------
+        // ✨ Caching Check: 캐시 확인 (message와 language_code로 키 생성)
+        // --------------------------------------------------
+        const cacheKey = `${language_code}:${message}`;
+        const cachedItem = responseCache.get(cacheKey);
+
+        if (cachedItem && Date.now() < cachedItem.expiry) {
+             console.log("Cache HIT: Returning cached response.");
+             return NextResponse.json({ 
+                response: cachedItem.response,
+                message: "Success (from cache)" 
+            });
+        }
+        // --------------------------------------------------
+        // 캐시 확인 끝
+
         // 3. 히스토리 변환 (Gemini API 형식에 맞게)
-        // 클라이언트에서 {role: 'user/assistant', content: '...'} 형식으로 왔다고 가정
+        // 캐시를 사용하는 경우, 히스토리 없이 순수 메시지와 시스템 프롬프트만으로 응답이 나와야 
+        // 완벽하게 동일한 캐시 결과를 기대할 수 있으나, SermonNote는 대화형이므로 
+        // 히스토리가 있는 요청은 캐시 미스가 나도록 설계했습니다.
+        
         const contents = history.map(msg => ({
             role: msg.role === 'user' ? 'user' : 'model', // Gemini API는 'model'을 사용
             parts: [{ text: msg.content }]
@@ -68,12 +93,20 @@ export async function POST(request) {
             config: {
                 systemInstruction: SYSTEM_INSTRUCTIONS(language_code || 'ko'), // 한국어 기본값
                 temperature: 0.7,
-                userId: userId, // Firebase UID를 사용자 ID로 사용
             }
         });
 
         const aiResponseText = response.text;
 
+        // --------------------------------------------------
+        // ✨ Caching Save: 캐시에 응답 저장
+        // --------------------------------------------------
+        responseCache.set(cacheKey, {
+            response: aiResponseText,
+            expiry: Date.now() + CACHE_TTL,
+        });
+        // --------------------------------------------------
+        
         // 5. 응답 반환
         return NextResponse.json({ 
             response: aiResponseText,
@@ -83,17 +116,19 @@ export async function POST(request) {
     } catch (error) {
         console.error("Gemini API Route Error:", error);
         
-        // Gemini API 키가 유효하지 않은 경우 401 또는 403 에러 반환
-        if (error.message && error.message.includes("API key not valid")) {
-            return NextResponse.json(
-                { response: "Gemini API 키가 유효하지 않습니다. 확인해주세요.", message: "API Key Not Valid" },
-                { status: 401 }
-            );
+        const errorMessage = error.message || "알 수 없는 API 오류";
+        let status = 500;
+        
+        // 흔히 발생하는 인증 또는 할당량 오류에 대한 상태 코드 지정
+        if (errorMessage.includes("API key not valid")) {
+            status = 401; // Unauthorized
+        } else if (errorMessage.includes("quota")) {
+            status = 429; // Too Many Requests (할당량 초과)
         }
 
         return NextResponse.json(
-            { response: "서버 내부 오류가 발생했습니다.", message: error.message },
-            { status: 500 }
+            { response: "서버 내부 오류가 발생했습니다. 메시지를 확인하세요.", message: errorMessage },
+            { status: status }
         );
     }
 }

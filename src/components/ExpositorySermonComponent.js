@@ -5,7 +5,8 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 // 라이브러리 및 유틸리티
-import { t } from '@/lib/translations';
+
+import { SUBSCRIPTION_LIMITS } from '../../src/lib/constants';
 
 // 아이콘
 import { GoBackIcon, SearchIcon, BibleIcon, LoadingSpinner } from './IconComponents';

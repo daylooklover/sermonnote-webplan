@@ -2,9 +2,13 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      // @/ 경로가 루트에 있는 파일도 찾을 수 있도록 설정
-      "@/*": ["./src/*", "./*"], // 이 부분을 수정합니다.
-      "@components/*": ["./components/*"] // 이 설정은 그대로 둡니다.
+      // 💡 프로젝트의 모든 소스 코드를 src/* 아래에서 찾도록 설정합니다.
+      // @/lib/constants 는 이제 ./src/lib/constants 로 해석됩니다.
+      "@/*": ["./src/*"], 
+      
+      // 💡 '@components'와 같이 특정 폴더에 대한 별칭을 원한다면 다음과 같이 명시합니다.
+      "@components/*": ["./src/components/*"] 
     }
-  }
+  },
+  "include": ["src/**/*"]
 }

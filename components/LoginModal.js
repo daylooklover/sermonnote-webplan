@@ -7,8 +7,6 @@ import {
     sendPasswordResetEmail,
 } from 'firebase/auth'; 
 
-// 🚨 FirebaseError는 직접 import하지 않고, 오류 객체에서 처리합니다.
-
 const CloseIcon = () => (
     <svg 
         xmlns="http://www.w3.org/2000/svg" 
@@ -27,35 +25,66 @@ const CloseIcon = () => (
     </svg>
 ); 
 
+// 임시 t 함수 정의 (prop으로 받게 되므로 이 컴포넌트에서는 사용하지 않지만, 기본 구조 유지를 위해 남겨둡니다.)
+// 실제 번역은 app/page.js에서 prop으로 전달된 t 함수를 사용합니다.
+const dummyT = (key, ...args) => {
+    let text = key;
+    args.forEach((arg, index) => {
+        text = text.replace(new RegExp(`\\{${index}\\}`, 'g'), arg);
+    });
+    return text;
+};
+
+
 // Firebase 오류 코드를 사용자 친화적인 메시지로 변환
-const getFirebaseErrorMessage = (errorCode) => {
+// t 함수는 app/page.js에서 전달되므로, lang은 t 내부에서 처리됨.
+const getFirebaseErrorMessage = (errorCode, t) => {
+    // t 함수를 사용하여 번역된 메시지를 반환합니다.
     switch (errorCode) {
         case 'auth/invalid-email':
-            return '유효하지 않은 이메일 주소 형식입니다.';
+            return t('auth_invalid_email') || 'Invalid email address format.';
         case 'auth/user-disabled':
-            return '사용이 정지된 계정입니다.';
+            return t('auth_user_disabled') || 'Account has been disabled.';
         case 'auth/user-not-found':
         case 'auth/wrong-password':
-        case 'auth/invalid-credential': // 새로운 Firebase 버전에서 주로 사용됨
-            return '이메일 또는 비밀번호가 올바르지 않습니다.';
+        case 'auth/invalid-credential': 
+            return t('auth_wrong_credentials') || 'Email or password is incorrect.';
         case 'auth/email-already-in-use':
-            return '이미 사용 중인 이메일입니다.';
+            return t('auth_email_in_use') || 'Email is already in use.';
         case 'auth/weak-password':
-            return '비밀번호는 최소 6자 이상이어야 합니다.';
+            return t('auth_weak_password') || 'Password must be at least 6 characters.';
         case 'auth/missing-email':
-            return '이메일을 입력해 주세요.';
+            return t('auth_missing_email') || 'Please enter an email.';
         default:
-            return `인증 오류가 발생했습니다: ${errorCode.replace('auth/', '')}`;
+            return t('auth_generic_error', errorCode.replace('auth/', '')) || `Authentication error occurred: ${errorCode.replace('auth/', '')}`;
     }
 };
 
-const LoginModal = ({ onClose, auth, onLoginSuccess }) => {
-    // auth prop이 필수입니다. Firebase 인스턴스 체크
-    if (!auth) {
-        console.error("Firebase Auth instance is missing in LoginModal props.");
-        return null; 
+// 🚨 t prop을 추가하고, lang prop은 t 함수 내부로 전달되도록 수정했습니다.
+const LoginModal = ({ onClose, Instance, onLoginSuccess, t = dummyT, lang = 'ko' }) => {
+    
+    // Instance가 undefined일 경우, 모달 내부에 안내 메시지를 표시합니다.
+    if (!Instance) {
+        return (
+            <div 
+                className="fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center z-50 p-4"
+                onClick={onClose}
+            >
+                <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md border border-gray-200 text-center">
+                    <h3 className="text-xl font-bold text-red-600 mb-4">
+                        {t('auth_error_title') || 'Authentication System Error'}
+                    </h3>
+                    <p className="text-gray-700 mb-6">
+                        {t('auth_error_desc') || 'The authentication system is not initialized. Please try again later.'}
+                    </p>
+                    <button onClick={onClose} className="py-2 px-4 bg-gray-200 rounded-lg hover:bg-gray-300">
+                        {t('closeButton') || 'Close'}
+                    </button>
+                </div>
+            </div>
+        );
     }
-
+    
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState(''); 
@@ -76,43 +105,39 @@ const LoginModal = ({ onClose, auth, onLoginSuccess }) => {
             if (authMode === 'register') {
                 // 1. 회원가입 (Firebase createUserWithEmailAndPassword)
                 if (password !== confirmPassword) {
-                    setError('비밀번호와 비밀번호 확인이 일치하지 않습니다.');
+                    setError(t('auth_password_mismatch') || 'Password and confirmation do not match.');
                     setIsLoading(false);
                     return;
                 }
                 
-                // Firebase 회원가입 실행
-                await createUserWithEmailAndPassword(auth, email, password);
+                await createUserWithEmailAndPassword(Instance, email, password);
                 
-                setMessage('✅ 회원가입 성공! 이제 자동으로 로그인됩니다.');
-                // 성공 시 부모 컴포넌트에 알리고 모달 닫기
+                setMessage(t('auth_register_success') || 'Registration successful! You will be logged in automatically.');
                 onLoginSuccess();
                 setTimeout(onClose, 800); 
 
             } else if (authMode === 'login') {
                 // 2. 로그인 (Firebase signInWithEmailAndPassword)
-                await signInWithEmailAndPassword(auth, email, password);
+                await signInWithEmailAndPassword(Instance, email, password);
                 
-                setMessage('✅ 로그인 성공!');
-                // 성공 시 부모 컴포넌트에 알리고 모달 닫기
+                setMessage(t('auth_login_success') || 'Login successful!');
                 onLoginSuccess();
                 setTimeout(onClose, 800); 
 
             } else if (authMode === 'reset') {
                 // 3. 비밀번호 재설정 메일 발송 (Firebase sendPasswordResetEmail)
-                await sendPasswordResetEmail(auth, email);
+                await sendPasswordResetEmail(Instance, email);
 
-                setMessage('✅ 비밀번호 재설정 링크가 이메일로 전송되었습니다. 확인 후 비밀번호를 재설정해 주세요.');
+                setMessage(t('auth_reset_sent') || 'Password reset link sent to your email. Please check your email to proceed.');
                 setAuthMode('login'); // 재설정 후 로그인 탭으로 전환
             }
 
         } catch (e) {
-            // e.name이 'FirebaseError'인지 확인하고 e.code를 사용하도록 수정
             if (e.name === 'FirebaseError' && e.code) {
-                setError(getFirebaseErrorMessage(e.code));
+                setError(getFirebaseErrorMessage(e.code, t));
             } else {
                 console.error('Unexpected Auth Error:', e);
-                setError('예기치 않은 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+                setError(t('auth_unexpected_error') || 'An unexpected error occurred. Please try again later.');
             }
         } finally {
             setIsLoading(false);
@@ -126,19 +151,22 @@ const LoginModal = ({ onClose, auth, onLoginSuccess }) => {
     };
     
     const tabLabels = [
-        { key: 'login', label: '로그인' },
-        { key: 'register', label: '회원가입' },
+        // 🚨 FIX: t 함수를 사용하여 번역 적용
+        { key: 'login', label: t('login') || 'Login' },
+        { key: 'register', label: t('register') || 'Register' },
     ];
     
     const getHeaderTitle = () => {
-        if (authMode === 'reset') return '비밀번호 재설정';
-        return authMode === 'register' ? '회원가입' : '로그인';
+        if (authMode === 'reset') return t('auth_reset_title') || 'Password Reset';
+        // 🚨 FIX: t 함수를 사용하여 번역 적용
+        return authMode === 'register' ? (t('auth_register_title') || 'Register') : (t('login') || 'Login');
     };
     
     const getButtonText = () => {
-        if (isLoading) return authMode === 'register' ? '가입 중...' : '처리 중...';
-        if (authMode === 'reset') return '재설정 메일 보내기';
-        return authMode === 'register' ? '회원가입' : '로그인';
+        // 🚨 FIX: t 함수를 사용하여 번역 적용
+        if (isLoading) return authMode === 'register' ? (t('auth_registering') || 'Registering...') : (t('auth_processing') || 'Processing...');
+        if (authMode === 'reset') return t('auth_send_reset') || 'Send Reset Email';
+        return authMode === 'register' ? (t('auth_register_button') || 'Register') : (t('login') || 'Login');
     };
 
     return (
@@ -187,7 +215,7 @@ const LoginModal = ({ onClose, auth, onLoginSuccess }) => {
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        placeholder="이메일"
+                        placeholder={t('auth_placeholder_email') || "Email"}
                         className="w-full p-3 rounded-md bg-gray-100 text-gray-800 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-red-500"
                         required
                         disabled={isLoading}
@@ -200,7 +228,7 @@ const LoginModal = ({ onClose, auth, onLoginSuccess }) => {
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                placeholder="비밀번호 (6자 이상)"
+                                placeholder={t('auth_placeholder_password') || "Password (6+ characters)"}
                                 className="w-full p-3 rounded-md bg-gray-100 text-gray-800 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-red-500"
                                 required
                                 disabled={isLoading}
@@ -211,7 +239,7 @@ const LoginModal = ({ onClose, auth, onLoginSuccess }) => {
                                     type="password"
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
-                                    placeholder="비밀번호 확인"
+                                    placeholder={t('auth_placeholder_confirm_password') || "Confirm Password"}
                                     className="w-full p-3 rounded-md bg-gray-100 text-gray-800 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-red-500"
                                     required
                                     disabled={isLoading}
@@ -228,7 +256,7 @@ const LoginModal = ({ onClose, auth, onLoginSuccess }) => {
                                 onClick={() => {setAuthMode('reset'); setError(''); setMessage('');}}
                                 className="text-sm text-gray-500 hover:text-red-600 transition-colors"
                             >
-                                비밀번호를 잊으셨나요?
+                                {t('auth_forgot_password') || 'Forgot your password?'}
                             </button>
                         </div>
                     )}
@@ -249,12 +277,12 @@ const LoginModal = ({ onClose, auth, onLoginSuccess }) => {
                                     className="ml-1 text-red-600 hover:text-red-800 font-medium transition-colors"
                                     type="button"
                                 >
-                                    로그인 화면으로 돌아가기
+                                    {t('auth_back_to_login') || 'Back to Login'}
                                 </button>
                             </div>
                     )}
                     
-                    {/* 익명 사용 계속 링크 (이전 App.js 로직에 따라 onClose를 호출하여 익명 사용 상태로 돌아가도록 함) */}
+                    {/* 익명 사용 계속 링크 */}
                     {authMode !== 'reset' && (
                         <p className="text-center text-sm mt-4">
                             <button
@@ -262,7 +290,7 @@ const LoginModal = ({ onClose, auth, onLoginSuccess }) => {
                                 onClick={onClose} 
                                 className="text-gray-500 hover:text-gray-700 font-medium"
                             >
-                                지금은 로그인하지 않고 앱 사용 계속하기
+                                {t('auth_continue_anon') || 'Continue using the app without logging in'}
                             </button>
                         </p>
                     )}

@@ -66,23 +66,26 @@ export const AuthProvider = ({ children }) => {
         const auth = getAuth(app);
         const db = getFirestore(app);
         
+        // ⭐️ FIX: authInstance와 dbInstance를 동기적으로 설정하여 다음 렌더링에 반영
         setAuthInstance(auth);
         setDbInstance(db);
         
         let unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
+            // 이 리스너는 인증 상태가 변경될 때마다 호출되며, 로딩을 false로 설정합니다.
             setUser(currentUser);
-            setLoading(false);
+            setLoading(false); 
             console.log("Auth initialized. User:", currentUser ? currentUser.uid : "Anonymous/None");
         });
 
         const signInUser = async () => {
             try {
+                // 이미 onAuthStateChanged 리스너가 사용자 상태를 감지하고 있으므로
+                // 여기서는 토큰이 있을 경우에만 명시적 사인을 시도합니다.
                 if (initialAuthToken) {
                     await signInWithCustomToken(auth, initialAuthToken);
-                } else {
-                    if (!auth.currentUser) {
-                        await signInAnonymously(auth);
-                    }
+                } else if (!auth.currentUser) {
+                    // ⭐️ 익명 로그인을 시도하여 currentUser가 null이 되지 않도록 합니다.
+                    await signInAnonymously(auth);
                 }
             } catch (error) {
                 console.error("Firebase Authentication Error during sign-in:", error);
@@ -91,12 +94,14 @@ export const AuthProvider = ({ children }) => {
             }
         };
 
+        // ⭐️ FIX: authInstance가 설정된 후, 비동기 로그인 로직을 시작
         signInUser();
         
         return () => unsubscribeAuth();
-    }, []); // initialAuthToken이 변경될 여지가 있다면 [initialAuthToken]을 추가하세요.
+    }, []); // 초기 로드 시에만 실행되도록 빈 배열 유지
 
-    const value = { user, loading, auth: authInstance, db: dbInstance, authError, handleLogout };
+    // ⭐️ useAuth에서 auth는 authInstance로 통일하여 전달합니다.
+    const value = { user, loading, authInstance: authInstance, db: dbInstance, authError, handleLogout };
     return (
         <AuthContext.Provider value={value}>
             {children}
@@ -106,5 +111,11 @@ export const AuthProvider = ({ children }) => {
 
 // 3. useAuth 커스텀 훅
 export const useAuth = () => {
-    return useContext(AuthContext);
+    // ⭐️ FIX: authInstance를 auth가 아닌 authInstance 키로 전달하므로, useAuth에서 authInstance로 받도록 합니다.
+    const context = useContext(AuthContext);
+    const { authInstance, ...rest } = context;
+    
+    // app/page.js의 useAuth 구조 (authInstance와 db를 별도로 받지 않고 모두 rest에 포함된 채로 받음)에 맞춰
+    // authInstance를 auth 키로 전달받도록 context 정의부를 수정했습니다.
+    return context; // context에는 { user, loading, authInstance, db, authError, handleLogout }가 포함됨
 };

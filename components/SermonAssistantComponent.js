@@ -8,7 +8,32 @@ const CHAT_ENDPOINT = '/api/assistant-chat';
 const API_BASE_URL = ''; // 상대 경로 사용
 const GEMINI_STUDIO_URL = "https://aistudio.google.com/app/apikey";
 
-// 🚨 임시 t 함수 제거! 이 컴포넌트는 t와 lang을 props로 받습니다. 🚨
+// 💡 Custom Modal Hook/Logic (커스텀 모달 상태 관리)
+const useModal = () => {
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [modalAction, setModalAction] = useState(null);
+
+    const openModal = (action) => {
+        setModalAction(() => action);
+        setIsModalOpen(true);
+    };
+
+    const closeModal = () => {
+        setIsModalOpen(false);
+        setModalAction(null);
+    };
+    
+    // 모달을 통한 실제 실행 함수
+    const confirmAction = () => {
+        if (modalAction) {
+            modalAction();
+        }
+        closeModal();
+    };
+
+    return { isModalOpen, openModal, closeModal, confirmAction };
+};
+
 
 // 💡 MessageComponent (마크다운 처리 포함)
 const MessageComponent = ({ message, lang }) => { 
@@ -18,17 +43,55 @@ const MessageComponent = ({ message, lang }) => {
     // ReactMarkdown 및 remarkGfm이 없다고 가정하고, 마크다운 처리를 기본 HTML로 대체합니다.
     const renderContent = (text) => {
         if (!text) return null;
-        let html = text.replace(/\n/g, '<br/>');
-        html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        return <div dangerouslySetInnerHTML={{ __html: html }} />;
+        
+        let processedText = text;
+        
+        // 1. 코드 블록 처리 (간단한 백틱 감지)
+        if (processedText.includes('```')) {
+            // 코드 블록이 있을 경우, 단순 텍스트 처리를 하지 않고 pre 태그로 감싸서 고정폭 폰트와 스타일을 적용합니다.
+            return (
+                <pre className="whitespace-pre-wrap font-mono p-3 my-2 bg-gray-600 dark:bg-gray-900 rounded-lg overflow-x-auto text-sm text-white">
+                    {processedText}
+                </pre>
+            );
+        }
+
+        // 2. 제목 (H3) 처리: '###'을 굵고 크게, 마진을 줍니다.
+        processedText = processedText.replace(
+            /###\s(.*?)\n/g, 
+            '<h3 class="text-lg font-bold mt-4 mb-2 text-indigo-500">$1</h3>'
+        );
+        
+        // 3. 목록 (-) 처리: ul/li 구조로 변경하고 마진을 줍니다.
+        processedText = processedText.replace(
+            /^\s*-\s(.*?)$/gm, 
+            '<li class="mb-1 ml-2 pl-2 list-disc list-inside">$1</li>'
+        );
+        // 목록이 있다면 ul로 감싸줍니다. (단순 목록만 있다고 가정)
+        if (processedText.includes('<li')) {
+            processedText = `<ul>${processedText}</ul>`;
+        }
+
+        // 4. 볼드 처리: **...**
+        processedText = processedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        
+        // 5. 줄 바꿈 처리 (마지막에 적용)
+        processedText = processedText.replace(/\n/g, '<br/>');
+
+        // 6. 연속된 <br/>을 하나로 줄임 (과도한 공백 방지)
+        processedText = processedText.replace(/(<br\/>\s*){3,}/g, '<br/><br/>');
+
+        // 텍스트만 남아 있을 경우
+        return <div dangerouslySetInnerHTML={{ __html: processedText }} />;
     };
     
     return (
         <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
-            <div className={`max-w-[80%] p-3 rounded-xl shadow-md ${
+            {/* 🚨 AI 메시지 배경색을 밝은 회색으로 변경하여 대비 개선 */}
+            <div className={`max-w-[80%] p-4 rounded-xl shadow-lg transition-all duration-300 ${
                 isUser 
-                    ? 'bg-indigo-600 text-white' 
-                    : 'bg-gray-700 text-gray-100 dark:bg-gray-800 dark:text-gray-100'
+                    ? 'bg-indigo-600 text-white' // 사용자 메시지 (파랑)
+                    : 'bg-gray-50 text-gray-800 dark:bg-gray-700 dark:text-gray-100' // AI 메시지 (밝은 배경/짙은 글씨)
             }`}>
                 <div className="prose dark:prose-invert max-w-none text-sm leading-relaxed">
                     {renderContent(content)}
@@ -42,7 +105,7 @@ const MessageComponent = ({ message, lang }) => {
 const SermonAssistantComponent = ({ 
     user, 
     lang, // 🚨 FIX 1: props로 lang과 t를 명시적으로 받습니다.
-    t,    // 🚨 FIX 1: t 함수를 prop으로 받습니다.
+    t,    // 🚨 FIX 1: t 함수를 prop으로 받습니다.
     onGoBack, 
     openLoginModal, 
     sermonCount, 
@@ -55,6 +118,10 @@ const SermonAssistantComponent = ({
     const [currentInput, setCurrentInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef(null);
+    
+    // 💡 Custom Modal Hooks 사용
+    const { isModalOpen, openModal, closeModal, confirmAction } = useModal();
+
 
     // 자동 스크롤 로직
     const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
@@ -73,7 +140,7 @@ const SermonAssistantComponent = ({
         if (messages.length === 0 || messages[0].id === 'initial') {
             setMessages([initialMessage]);
         }
-    }, [lang]); // 🚨 lang이 변경될 때마다 초기화되도록 수정
+    }, [lang, t]); // 🚨 lang과 t가 변경될 때마다 초기화되도록 수정
 
     
     // API 호출 경로 생성
@@ -141,8 +208,9 @@ const SermonAssistantComponent = ({
                     isAuthError = true; 
                 }
                 
+                // 로딩 메시지 제거 후 오류 메시지 추가
                 setMessages(prev => prev.filter(msg => msg.id !== loadingMessageId));
-                setMessages(prev => [...prev, { id: 'error', content: errorDetails, role: 'assistant', isAuthError: isAuthError }]);
+                setMessages(prev => [...prev, { id: generateId(), content: errorDetails, role: 'assistant', isAuthError: isAuthError, isError: true }]);
                 return;
             }
 
@@ -153,6 +221,7 @@ const SermonAssistantComponent = ({
             
             const aiResponseContent = data.response || t('aiAssistantDefaultResponse', lang); // t 함수는 이제 prop으로 사용
 
+            // 🚨 FIX: 배열 리터럴 닫는 괄호 ']' 추가
             setMessages(prev => [...prev, { 
                 id: generateId(), 
                 content: aiResponseContent, 
@@ -167,7 +236,7 @@ const SermonAssistantComponent = ({
         } catch (error) {
             console.error("AI Assistant API Catch Error:", error.message);
             setMessages(prev => prev.filter(msg => msg.id !== loadingMessageId));
-            setMessages(prev => [...prev, { id: generateId(), content: t('errorProcessingRequest', lang) || "네트워크 오류가 발생했습니다.", role: 'assistant', isAuthError: true }]);
+            setMessages(prev => [...prev, { id: generateId(), content: t('errorProcessingRequest', lang) || "네트워크 오류가 발생했습니다.", role: 'assistant', isAuthError: true, isError: true }]);
         } finally {
             setIsLoading(false);
         }
@@ -200,12 +269,45 @@ const SermonAssistantComponent = ({
 
     const isInitialScreen = messages.length === 0 || (messages.length === 1 && messages[0].id === 'initial');
     
-    // 대화 내용 초기화
-    const handleClearChat = () => {
-        if (confirm(t('confirmClearChat', lang))) { // t 함수 사용
+    // 대화 내용 초기화 (Custom Modal 호출)
+    const handleClearChatRequest = () => {
+        // 🚨 FIX 3: confirm() 대신 커스텀 모달 오픈
+        openModal(() => {
             setMessages([]);
-        }
+        });
     }
+
+    // 💡 Custom Modal Component
+    const CustomConfirmModal = () => {
+        if (!isModalOpen) return null;
+        
+        return (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" aria-modal="true" role="dialog">
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-2xl max-w-sm w-full transform transition-all duration-300 scale-100 opacity-100">
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+                        {t('confirmAction', lang)}
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-6">
+                        {t('confirmClearChat', lang)}
+                    </p>
+                    <div className="flex justify-end space-x-3">
+                        <button
+                            onClick={closeModal}
+                            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+                        >
+                            {t('cancel', lang)}
+                        </button>
+                        <button
+                            onClick={confirmAction}
+                            className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition"
+                        >
+                            {t('confirm', lang)}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
 
 
     return (
@@ -213,10 +315,10 @@ const SermonAssistantComponent = ({
             {/* Header and Back Button */}
             <div className="p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm sticky top-0 z-10 flex justify-between items-center">
                 <button onClick={onGoBack} className="flex items-center text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 transition-colors">
-                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
                     {t('goBack', lang)} 
                 </button>
-                <button onClick={handleClearChat} className="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 transition">
+                <button onClick={handleClearChatRequest} className="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 transition">
                     {t('clearChat', lang)}
                 </button>
             </div>
@@ -225,11 +327,11 @@ const SermonAssistantComponent = ({
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {isInitialScreen ? (
                     // ... 초기 화면 로직
-                    <div className="flex flex-col items-center justify-center h-full text-center p-8 dark:text-gray-400">
+                    <div className="flex flex-col items-center justify-center h-full text-center p-8 dark:text-gray-400 min-h-[calc(100vh-180px)]">
                         <h1 className="text-4xl lg:text-5xl font-extrabold mb-4 dark:text-white">
                             {t('sermonAssistantInitialTitle', lang)}
                         </h1>
-                        <p className="text-lg mb-8">
+                        <p className="text-lg mb-8 max-w-lg">
                             {t('sermonAssistantInitialDescription', lang)}
                         </p>
                         
@@ -237,7 +339,7 @@ const SermonAssistantComponent = ({
                             <p className="mb-4 font-semibold dark:text-gray-200">{t('askAQuestionToBegin', lang)}</p>
                             <button
                                 onClick={() => setMessages(prev => prev.filter(msg => msg.id !== 'initial'))} 
-                                className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition"
+                                className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition shadow-lg"
                             >
                                 {t('startYourSermonConversation', lang)}
                             </button>
@@ -249,11 +351,11 @@ const SermonAssistantComponent = ({
                             <MessageComponent message={message} lang={lang} />
                             
                             {/* 💡 오류 메시지 아래에 '키 확인' 버튼 노출 */}
-                            {message.id === 'error' && message.isAuthError && (
+                            {message.isError && message.isAuthError && ( // isError 플래그 사용
                                 <div className="flex justify-center mt-2">
                                     <button 
                                         onClick={handleGoToGeminiStudio}
-                                        className="px-4 py-2 text-sm bg-yellow-500 text-gray-900 font-semibold rounded-lg hover:bg-yellow-400 transition"
+                                        className="px-4 py-2 text-sm bg-yellow-500 text-gray-900 font-semibold rounded-lg hover:bg-yellow-400 transition shadow-md"
                                     >
                                         Gemini API 키 확인 / 발급
                                     </button>
@@ -283,17 +385,19 @@ const SermonAssistantComponent = ({
                         className={`p-3 rounded-full transition-colors ${
                             isLoading || !currentInput.trim() || !user 
                                 ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed' 
-                                : 'bg-indigo-600 hover:bg-indigo-700'
+                                : 'bg-indigo-600 hover:bg-indigo-700 shadow-lg'
                         }`}
                     >
                         {/* Send Icon */}
-                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
                     </button>
                 </div>
                 {!user && (
                     <p className="text-xs text-red-500 text-center mt-2">{t('loginToUseFeature', lang)}</p>
                 )}
             </div>
+            {/* Custom Modal Render */}
+            <CustomConfirmModal />
         </div>
     );
 }
