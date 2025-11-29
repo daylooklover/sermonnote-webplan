@@ -1,267 +1,254 @@
 'use client';
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { t } from '@/lib/translations';
-import { RealLifeIcon, BibleIcon, LoadingSpinner } from './IconComponents';
-import { SUBSCRIPTION_LIMITS, incrementUsageCount } from '@/lib/firebase';
-import { useRouter } from 'next/navigation'; // next/navigation을 import 합니다.
 
-// API 호출을 위한 헬퍼 함수
-const callAPI = async (promptText, generationConfig = {}) => {
-  const response = await fetch('/api/gemini', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt: promptText, generationConfig }),
-  });
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ message: 'Failed to parse server error response.' }));
-    throw new Error(errorData.message || 'Server responded with an error.');
-  }
-  const data = await response.json();
-  return data.text;
-};
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+// 🚨 [FIX]: 아이콘 경로를 절대 경로로 수정합니다.
+import { GoBackIcon, LoadingSpinner, SearchIcon, PlusCircleIcon, RealLifeIcon } from '@/components/IconComponents.js'; 
+import { SUBSCRIPTION_LIMITS } from '@/lib/constants'; 
+// API 호출 경로 및 상수
+const API_ENDPOINT = '/api/sermon-generator'; 
+const MAX_SERMON_COUNT = 5; 
 
-// Custom Hook for Sermon Generation Logic
-const useSermonGeneration = (userId, canGenerateSermon, canGenerateCommentary, lang, user, openLoginModal, onLimitReached, sermonCount, commentaryCount, userSubscription) => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [generationError, setGenerationError] = useState(null);
+// 💡 RealLifeSermonComponent 정의
+const RealLifeSermonComponent = ({
+    setSermonDraft, 
+    user, 
+    userSubscription, 
+    setErrorMessage, 
+    errorMessage, // 🚨 [FIX] errorMessage prop 추가
+    lang, 
+    openLoginModal, 
+    onLimitReached, 
+    sermonCount, 
+    canGenerateSermon, 
+    handleAPICall, // 👈 중앙 집중식 API 호출 함수
+    onGoBack,
+    t // 👈 t 함수는 prop으로 받습니다.
+}) => {
+    
+    // 상태 관리
+    const [topicInput, setTopicInput] = useState('');
+    const [recommendations, setRecommendations] = useState([]); // AI 추천 목록
+    const [selectedRecommendation, setSelectedRecommendation] = useState(null); // 사용자가 선택한 추천
+    
+    const [isRecommending, setIsRecommending] = useState(false); // 추천 로딩 상태
+    const [isSermonLoading, setIsSermonLoading] = useState(false); // 설교 생성 로딩 상태
 
-  const generateSermon = useCallback(async (promptText, usageType = 'sermon', generationConfig = {}) => {
-    setGenerationError(null);
-    if (!user) {
-      openLoginModal();
-      return null;
-    }
+    // 에러 메시지를 안전하게 설정하는 헬퍼 함수
+    const safeSetErrorMessage = useCallback((msg) => {
+        if (typeof setErrorMessage === 'function') {
+            setErrorMessage(msg);
+        }
+    }, [setErrorMessage]);
 
-    const userLimit = SUBSCRIPTION_LIMITS[userSubscription] || SUBSCRIPTION_LIMITS['free'];
+    // 💡 설교 생성 가능 횟수 표시
+    const remainingSermons = useMemo(() => {
+        const limit = userSubscription === 'premium' ? 9999 : (SUBSCRIPTION_LIMITS[userSubscription]?.sermon || MAX_SERMON_COUNT);
+        return limit - sermonCount;
+    }, [userSubscription, sermonCount]);
 
-    if (usageType === 'sermon' && (!canGenerateSermon || sermonCount >= userLimit.sermon)) {
-      onLimitReached();
-      setGenerationError(t('sermonLimitError', lang, Math.max(0, userLimit.sermon - sermonCount)));
-      return null;
-    }
-    if (usageType === 'commentary' && (!canGenerateCommentary || commentaryCount >= userLimit.commentary)) {
-      onLimitReached();
-      setGenerationError(t('commentaryLimitError', lang, Math.max(0, userLimit.commentary - commentaryCount)));
-      return null;
-    }
 
-    setIsLoading(true);
-    try {
-      const text = await callAPI(promptText, generationConfig); // callGeminiAPI 대신 callAPI 사용
-      await incrementUsageCount(usageType, userId, usageType === 'sermon' ? sermonCount : commentaryCount);
-      return text;
-    } catch (error) {
-      console.error(error);
-      setGenerationError(t('generationFailed', lang));
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [userId, sermonCount, commentaryCount, canGenerateSermon, canGenerateCommentary, lang, user, openLoginModal, onLimitReached, userSubscription]);
+    // --------------------------------------------------
+    // 1. AI 성경/제목 추천 받기 (Gemini API: type='real-life-recommendation')
+    // --------------------------------------------------
+    const handleTopicRecommendation = useCallback(async () => {
+        if (!user) { openLoginModal(); return; }
+        if (!topicInput.trim()) { safeSetErrorMessage(t('enterTopic', lang)); return; }
 
-  return { generateSermon, isLoading, generationError };
-};
+        setIsRecommending(true);
+        safeSetErrorMessage('');
+        setRecommendations([]);
+        setSelectedRecommendation(null);
 
-const RealLifeSermonComponent = ({ setSermonDraft, userId, sermonCount, userSubscription, setErrorMessage, lang, user, openLoginModal, onLimitReached, canGenerateSermon }) => {
-  const [realLifeInput, setRealLifeInput] = useState('');
-  const [suggestions, setSuggestions] = useState([]);
-  const [selectedSuggestion, setSelectedSuggestion] = useState(null);
-  const [commentary, setCommentary] = useState('');
-  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
-  const [commentaryLoading, setCommentaryLoading] = useState(false);
+        try {
+            const promptText = `Real-life topic: "${topicInput}". Recommend 3 scripture/title options.`;
+            
+            // ✅ API 호출: handleAPICall 사용, type: real-life-recommendation (JSON 응답 스키마 사용)
+            const responseText = await handleAPICall(
+                promptText, 
+                API_ENDPOINT, 
+                'real-life-recommendation'
+            );
 
-  const { generateSermon, isLoading, generationError } = useSermonGeneration(userId, canGenerateSermon, canGenerateSermon, lang, user, openLoginModal, onLimitReached, sermonCount, 0, userSubscription);
+            if (!responseText) {
+                // 이 부분이 실행되는 것은 API 호출이 실패했다는 의미입니다.
+                // handleAPICall에서 에러 메시지를 설정했으므로 여기서 추가 설정은 생략
+                return;
+            }
+            
+            // 🚨 JSON 응답 파싱 (서버에서 JSON을 반환한다고 가정)
+            let parsedRecommendations = [];
+            try {
+                parsedRecommendations = JSON.parse(responseText);
+                if (!Array.isArray(parsedRecommendations)) throw new Error("Not Array");
+            } catch (e) {
+                console.error("Failed to parse recommendation JSON:", e);
+                // JSON 파싱 실패 시, API 키 오류로 처리 (Gemini에서 JSON 포맷을 지키지 못했을 때)
+                safeSetErrorMessage(t('invalidApiResponse', lang) + " (JSON 파싱 오류)"); 
+                return;
+            }
 
-  const handleGetSuggestions = useCallback(async () => {
-    if (realLifeInput.trim() === '') {
-      setErrorMessage(t('enterRealLifeTopic', lang));
-      return;
-    }
-    
-    setSuggestionsLoading(true);
-    setSuggestions([]);
-    setSelectedSuggestion(null);
-    setCommentary('');
-    setSermonDraft(t('generating', lang));
-    setErrorMessage('');
+            setRecommendations(parsedRecommendations.slice(0, 3)); // 최대 3개만 표시
 
-    try {
-      const promptText = `Based on the following real-life topic, suggest 3 relevant scripture verses and 3 sermon themes in a JSON array format. The JSON array should contain objects with keys "verse" and "theme". Topic: "${realLifeInput}". The response should be in ${lang === 'ko' ? 'Korean' : 'English'}.`;
-      const generationConfig = {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: "ARRAY",
-          items: {
-            type: "OBJECT",
-            properties: {
-              "verse": { "type": "STRING" },
-              "theme": { "type": "STRING" }
-            },
-            "propertyOrdering": ["verse", "theme"]
-          }
-        }
-      };
-      const jsonText = await callAPI(promptText, generationConfig); // callGeminiAPI 대신 callAPI 사용
-      const cleanedJsonText = jsonText.replace(/```json\n|```/g, '').trim();
-      const parsedJson = JSON.parse(cleanedJsonText);
-      setSuggestions(parsedJson);
-      setSermonDraft('');
-    } catch (error) {
-      setSermonDraft(t('generationFailed', lang));
-      setErrorMessage(t('generationFailed', lang));
-      console.error(error);
-    } finally {
-      setSuggestionsLoading(false);
-    }
-  }, [realLifeInput, setErrorMessage, setSermonDraft, lang]);
+        } catch (error) {
+            console.error("Recommendation API Call Failed:", error);
+            // 404 오류가 여기로 잡히며, 이 메시지를 출력합니다.
+            safeSetErrorMessage(t('recommendationFailed', lang) + ` (오류: ${error.message})`);
+        } finally {
+            setIsRecommending(false);
+        }
+    }, [user, topicInput, lang, safeSetErrorMessage, openLoginModal, handleAPICall, t]);
 
-  const handleGetCommentary = useCallback(async () => {
-    if (!selectedSuggestion) {
-      setErrorMessage(t('selectSuggestion', lang));
-      return;
-    }
 
-    setCommentaryLoading(true);
-    setCommentary(t('generating', lang));
-    setErrorMessage('');
+    // --------------------------------------------------
+    // 2. 설교 초안 생성 (Gemini API: type='sermon')
+    // --------------------------------------------------
+    const handleSermonGeneration = useCallback(async () => {
+        if (!user) { openLoginModal(); return; }
+        if (!selectedRecommendation) { safeSetErrorMessage("먼저 추천 목록에서 하나를 선택해 주세요."); return; }
+        
+        // 🚨 제한 로직 활성화
+        if (!canGenerateSermon) { safeSetErrorMessage(t('sermonLimitError', lang)); onLimitReached(); return; }
 
-    try {
-      const promptText = `Provide a detailed commentary on "${selectedSuggestion.verse}" and connect it to the theme "${selectedSuggestion.theme}". The response should be in ${lang === 'ko' ? 'Korean' : 'English'}.`;
-      const text = await generateSermon(promptText, 'commentary');
-      if (text) {
-        setCommentary(text);
-      } else {
-        setCommentary(t('generationFailed', lang));
-      }
-    } catch (error) {
-      setCommentary(t('generationFailed', lang));
-      setErrorMessage(error.message);
-    } finally {
-      setCommentaryLoading(false);
-    }
-  }, [selectedSuggestion, setCommentary, setErrorMessage, lang, generateSermon]);
+        setIsSermonLoading(true);
+        safeSetErrorMessage('');
 
-  const handleGenerateSermon = useCallback(async () => {
-    if (!selectedSuggestion || commentary.trim() === '') {
-      setErrorMessage(t('missingSuggestionAndCommentary', lang));
-      return;
-    }
-    try {
-      const promptText = `Based on the real-life topic "${realLifeInput}", the scripture "${selectedSuggestion.verse}", and the commentary "${commentary}", write a detailed sermon in ${lang === 'ko' ? 'Korean' : 'English'}.`;
-      const sermonText = await generateSermon(promptText, 'sermon');
-      if (sermonText) setSermonDraft(sermonText);
-    } catch (error) {
-      setErrorMessage(error.message);
-    }
-  }, [realLifeInput, selectedSuggestion, commentary, generateSermon, setSermonDraft, setErrorMessage, lang]);
-  
-  const reviseDraft = useCallback(async (selectedText) => {
-    if (!selectedText) { setErrorMessage(t('selectContentToEdit', lang)); return; }
-    const comment = prompt(t('editWithAiTitle', lang));
-    if (!comment) return;
+        const { scripture, title } = selectedRecommendation;
+        
+        try {
+            // 🚨 [설교 생성 프롬프트]: 주제, 성경구절, 제목을 모두 포함하여 상세 요청
+            const promptText = 
+                `Write a detailed, full-length sermon (between 2500 and 3000 characters) on the topic of "${topicInput}" using the central theme and scripture: Title: "${title}", Scripture: "${scripture}". ` +
+                `Focus on applying the biblical truth to the real-life topic "${topicInput}". ` +
+                `The output must be a ready-to-deliver sermon text written in a direct preaching style (설교체), NOT just a hierarchical outline. DO NOT use Markdown headers. ` +
+                `RESPOND IN THE LANGUAGE SPECIFIED BY THE LANGUAGE CODE: ${lang}.`;
+            
+            // ✅ API 호출: handleAPICall 사용, type: sermon
+            const sermonResult = await handleAPICall(
+                promptText, 
+                API_ENDPOINT, 
+                'sermon'
+            );
 
-    setSermonDraft(t('generating', lang));
-    setErrorMessage('');
-    try {
-        const promptText = `Based on the following user-selected text and a user comment, please revise the text.
-        User-selected text: "${selectedText}"
-        User comment: "${comment}"
-        Please provide the revised text in ${lang === 'ko' ? 'Korean' : 'English'}.`;
-        const revisedText = await callAPI(promptText); // callGeminiAPI 대신 callAPI 사용
-        setSermonDraft(revisedText);
-    } catch (error) {
-        setSermonDraft(t('generationFailed', lang));
-        setErrorMessage(t('generationFailed', lang));
-    }
-}, [setSermonDraft, setErrorMessage, lang]);
+            if (sermonResult) {
+                setSermonDraft(sermonResult); // 부모 컴포넌트에 초안 전달 (모달 트리거)
+            } else {
+                // handleAPICall에서 에러 메시지를 이미 설정했으므로 여기서 추가 설정은 생략
+            }
+            
+        } catch (error) {
+            console.error("Sermon Generation API Call Failed:", error);
+            safeSetErrorMessage(t('sermonGenerationFailed', lang));
+        } finally {
+            setIsSermonLoading(false);
+        }
+    }, [
+        user, selectedRecommendation, topicInput, lang, canGenerateSermon, 
+        safeSetErrorMessage, openLoginModal, onLimitReached, handleAPICall, setSermonDraft, t
+    ]);
+    
+    // --------------------------------------------------
+    // 3. UI 렌더링
+    // --------------------------------------------------
+    const isLoading = isRecommending || isSermonLoading;
+    
+    return (
+        <div className="flex flex-col h-full min-h-screen bg-gray-100 dark:bg-slate-900 p-6 sm:p-8">
+            
+            {/* Header and Back Button */}
+            <div className="p-4 bg-white dark:bg-gray-800 rounded-xl shadow-md mb-6 flex items-center justify-between sticky top-0 z-10">
+                <button 
+                    onClick={onGoBack} 
+                    className="flex items-center text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors p-2 rounded-lg"
+                >
+                    <GoBackIcon className="w-5 h-5 mr-1" />
+                    {t('goBack', lang)} 
+                </button>
+                <h1 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center"><RealLifeIcon className="w-6 h-6 mr-2 text-red-500" />{t('realLifeSermon', lang)}</h1>
+                <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
+                    <span className="font-semibold">{t('sermonLimit', lang, remainingSermons)}</span>
+                </div>
+            </div>
 
-  return (
-    <div className="flex flex-col items-center space-y-4 max-w-2xl mx-auto w-full">
-      <h2 className="text-4xl font-extrabold text-gray-800">{t('realLifeSermonTitle', lang)}</h2>
-      <p className="text-lg text-gray-600 mb-4">{t('realLifeDescription', lang)}</p>
-      
-      {userSubscription !== 'premium' && (
-        <p className="text-sm text-gray-500 mb-4">
-          {t('sermonLimit', lang, Math.max(0, (SUBSCRIPTION_LIMITS[userSubscription]?.sermon || 0) - sermonCount))}
-        </p>
-      )}
-      {generationError && (
-          <div className="bg-red-200 text-red-800 p-4 rounded-xl mb-4 w-full">
-              {generationError}
-          </div>
-      )}
+            <div className="max-w-4xl mx-auto w-full space-y-6">
+                
+                {/* Topic Input Section */}
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
+                    <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
+                        {t('enterRealLifeTopic', lang)}
+                    </h2>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{t('realLifeSermonDescription', lang)}</p>
+                    
+                    <input
+                        type="text"
+                        value={topicInput}
+                        onChange={(e) => setTopicInput(e.target.value)}
+                        placeholder={t('topicPlaceholder', lang)}
+                        className="w-full p-3 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-white border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        disabled={isLoading}
+                    />
+                    
+                    <button
+                        onClick={handleTopicRecommendation}
+                        disabled={!topicInput.trim() || isLoading}
+                        className="mt-4 w-full px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 transition disabled:opacity-50"
+                    >
+                        {isRecommending ? <LoadingSpinner className="w-5 h-5 inline mr-2 animate-spin" /> : t('recommendScripture', lang)}
+                    </button>
+                </div>
 
-      <div className="w-full flex space-x-2">
-        <input
-          type="text"
-          value={realLifeInput}
-          onChange={(e) => setRealLifeInput(e.target.value)}
-          placeholder={t('enterRealLifeTopic', lang)}
-          className="flex-grow p-4 rounded-xl bg-white border border-gray-300 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-        />
-        <button
-          onClick={handleGetSuggestions}
-          className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-xl shadow-lg transition duration-300 disabled:bg-gray-400 flex items-center justify-center"
-          disabled={realLifeInput.trim() === '' || suggestionsLoading}
-        >
-          {suggestionsLoading && <LoadingSpinner />}
-          <span className={`${suggestionsLoading ? 'ml-2' : ''}`}>{t('suggestScriptureAndThemes', lang)}</span>
-        </button>
-      </div>
+                {/* Recommendation Output Section */}
+                {recommendations.length > 0 && (
+                    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
+                        <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
+                            {t('aiScriptureRecommendation', lang)}
+                        </h2>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{t('recommendationInstruction', lang)}</p>
 
-      {suggestions.length > 0 && (
-        <div className="w-full p-4 rounded-xl bg-white border border-gray-300 text-left">
-          <p className="font-semibold text-gray-800 mb-2">{t('aiSuggestions', lang)}</p>
-          <ul className="space-y-2">
-            {suggestions.map((sug, index) => (
-              <li
-                key={index}
-                className={`p-3 rounded-lg cursor-pointer transition ${selectedSuggestion && selectedSuggestion.verse === sug.verse ? 'bg-purple-500 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'}`}
-                onClick={() => setSelectedSuggestion(sug)}
-              >
-                <p className="font-semibold">{sug.verse}</p>
-                <p className="text-sm">{sug.theme}</p>
-              </li>
-            ))}
-          </ul>
-          <button
-            onClick={handleGetCommentary}
-            className="mt-4 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl shadow-lg transition duration-300 disabled:bg-gray-400 w-full flex items-center justify-center"
-            disabled={!canGenerateSermon || commentaryLoading || !selectedSuggestion}
-          >
-            {commentaryLoading && <LoadingSpinner />}
-            <span className={`${commentaryLoading ? 'ml-2' : ''}`}>{t('getCommentary', lang)}</span>
-          </button>
-        </div>
-      )}
+                        <div className="space-y-3">
+                            {recommendations.map((rec, index) => (
+                                <div 
+                                    key={index}
+                                    onClick={() => setSelectedRecommendation(rec)}
+                                    className={`p-4 rounded-lg border cursor-pointer transition ${
+                                        selectedRecommendation?.scripture === rec.scripture
+                                            ? 'bg-purple-100 dark:bg-purple-900/40 border-purple-500 shadow-md'
+                                            : 'bg-gray-50 dark:bg-gray-700 border-gray-300 hover:border-purple-400'
+                                    }`}
+                                >
+                                    <p className="font-semibold text-gray-800 dark:text-white">{rec.title}</p>
+                                    <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{rec.scripture}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+                
+                {/* Sermon Generation Button */}
+                {recommendations.length > 0 && (
+                    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 text-center">
+                        <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
+                            {t('generateSermonFromSelection', lang)}
+                        </h2>
+                        <button
+                            onClick={handleSermonGeneration}
+                            disabled={!selectedRecommendation || isLoading || remainingSermons <= 0}
+                            className="px-8 py-4 bg-red-600 text-white font-extrabold text-lg rounded-xl shadow-lg hover:bg-red-700 transition disabled:opacity-50"
+                        >
+                            {isSermonLoading ? t('generatingSermon', lang) : t('generateSermonFromSelection', lang)}
+                        </button>
+                        {isSermonLoading && <LoadingSpinner message={t('generatingSermon', lang)} className="mt-4" />}
+                    </div>
+                )}
 
-      {commentary && (
-        <div className="w-full p-4 rounded-xl bg-white border border-gray-300 text-left whitespace-pre-wrap">
-          <p className="font-semibold text-gray-800 mb-2">{t('aiCommentaryTitle', lang)}</p>
-          <p className="text-gray-600">{commentary}</p>
-          <button
-            onClick={handleGenerateSermon}
-            className="mt-4 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg transition duration-300 disabled:bg-gray-400 w-full flex items-center justify-center"
-            disabled={!canGenerateSermon || isLoading || commentary.trim() === ''}
-          >
-            {isLoading && <LoadingSpinner />}
-            <span className={`${isLoading ? 'ml-2' : ''}`}>{t('generateSermonFromChat', lang)}</span>
-          </button>
-        </div>
-      )}
-      
-      {setSermonDraft && (
-           <button
-              onClick={() => reviseDraft(window.getSelection().toString().trim())}
-              className="mt-4 px-6 py-3 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold rounded-xl shadow-lg transition duration-300 w-full flex items-center justify-center"
-              disabled={isLoading}
-              >
-              {isLoading && <LoadingSpinner />}
-              <span className={`${isLoading ? 'ml-2' : ''}`}>{t('editWithAiTitle', lang)}</span>
-             </button>
-      )}
-    </div>
-  );
+                {/* Error Message Display */}
+                {errorMessage && errorMessage.length > 0 && (
+                    <div className="p-4 bg-red-100 dark:bg-red-900/20 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-300 rounded-lg text-center font-medium">
+                        🚨 {errorMessage}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
 };
 
 export default RealLifeSermonComponent;

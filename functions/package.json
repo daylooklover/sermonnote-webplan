@@ -1,0 +1,14 @@
+{
+  "name": "firebase-functions",
+  "description": "Next.js server for SermonNote deployed on Firebase Functions",
+  "main": "index.js",
+  "type": "module",
+  "engines": {
+    "node": "20"
+  },
+  "dependencies": {
+    "firebase-frameworks": "latest",
+    "firebase-functions": "^7.0.0"
+  },
+  "private": true
+}

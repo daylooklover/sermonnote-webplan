@@ -2,9 +2,10 @@
 
 export const translations = {
     ko: {
-        getStarted: '시작하기', // 이 키가 ko 객체 안에 있는지 확인
-        featuresTitle: 'SermonNote의 주요 특징', // 이 키가 ko 객체 안에 있는지 확인
-        feature1Title: '스마트한 설교 보조', // 이 키가 ko 객체 안에 있는지 확인
+        // ... (ko 섹션은 이전과 동일하게 유지됩니다.)
+        getStarted: '시작하기', 
+        featuresTitle: 'SermonNote의 주요 특징', 
+        feature1Title: '스마트한 설교 보조', 
         feature1Description: 'AI가 성경 본문 분석, 주제 선정, 내용 구성 등 설교 작성 전 과정을 돕습니다.',
         feature2Title: '빠른 메모, 깊은 묵상',
         feature2Description: '떠오르는 영감을 바로 메모하고, AI를 통해 묵상의 깊이를 더할 수 있습니다.',
@@ -14,7 +15,7 @@ export const translations = {
         whySermonNoteDescription: '바쁜 일상 속에서 깊이 있는 설교를 준비하는 것은 쉽지 않습니다. SermonNote는 최첨단 AI 기술을 활용하여 목사님과 설교자분들이 시간을 절약하고, 더욱 풍성한 말씀으로 성도들을 양육할 수 있도록 돕습니다. 개인 맞춤형 설교 자료 생성부터 성경 본문 연구 보조, 영감 관리까지, 모든 과정을 스마트하게 지원합니다.',
         privacyPolicy: '개인정보처리방침',
         termsOfService: '이용약관',
-        signUpLogin: '회원가입 / 로그인', // 이 키가 ko 객체 안에 있는지 확인 (pages.jsx의 버튼 텍스트가 "Sign Up / Login"이면 필요)
+        signUpLogin: '회원가입 / 로그인', 
         signUp: '회원가입',
         login: '로그인',
         emailPlaceholder: '이메일',
@@ -32,9 +33,10 @@ export const translations = {
         invalidCredentialsError: '잘못된 이메일 또는 비밀번호입니다.',
         popupClosedError: '팝업이 사용자에게 의해 닫혔습니다.',
         loginFailedGeneric: '로그인/회원가입에 실패했습니다',
-        welcome: '환영합니다, {0}님', // pages.jsx header에 사용될 수 있음
-        logout: '로그아웃', // pages.jsx header에 사용될 수 있음
-        // 아래는 SermonTypeGrid, ExpositorySermonComponent 등에서 사용되는 번역 키들입니다.
+        welcome: '환영합니다, {0}님', 
+        logout: '로그아웃', 
+        
+        // 설교 유형 키들 (ko)
         chooseSermonType: '설교 유형 선택',
         chooseSermonTypeDescription: '가장 적합한 설교 유형을 선택하여 말씀 준비를 시작하세요.',
         multilingualPromo: 'SermonNote는 다국어 설교 생성을 지원합니다!',
@@ -53,6 +55,7 @@ export const translations = {
         quickMemoSermonDescription: '영감받은 메모를 바탕으로 설교 초안을 신속하게 생성합니다.',
         sermonAssistant: '설교 AI 어시스턴트',
         sermonAssistantDescription: '질의응답을 통해 설교 아이디어를 얻고 초안을 생성합니다.',
+        rebirthSermon: '설교 리버쓰(Rebirth)',
         upgradeToPremium: '프리미엄으로 업그레이드',
         sermonAssistantTitle: '설교 AI 어시스턴트',
         assistantDescription: '설교 본문에 대한 질문을 하거나 설교 아이디어를 요청하여 초안을 생성할 수 있습니다.',
@@ -67,12 +70,20 @@ export const translations = {
         generatedSermonTitle: '생성된 설교 초안',
         memoLimitReached: '일일 메모 작성 한도({0}회)에 도달했습니다.',
         failedToSaveMemo: '메모 저장에 실패했습니다.',
-        // ... 필요한 다른 키들
+        
+        // 🚨 누락된 키 추가 (SermonSelection 컴포넌트용)
+        expositoryDesc: '특정 성경 본문을 기반으로 깊이 있는 강해 설교 초안을 생성합니다.', 
+        realLifeDesc: '현대 생활의 이슈와 성경적 진리를 연결하여 실용적인 메시지를 전달합니다.', 
+        quickMemoDesc: '음성 메모나 간단한 아이디어를 즉시 설교 초안으로 확장합니다.',
+        rebirthDesc: '공유된 설교 아카이브를 열람하고 새로운 설교로 재구성합니다.',
+        aiAssistantDesc: 'AI와의 대화를 통해 다양한 주제로 설교 초안을 작성합니다.',
+        upgradeDesc: '프리미엄 멤버십 구독 혜택 및 플랜을 확인합니다.', // upgradeToPremium과 분리
     },
     en: {
-        getStarted: 'Get Started', // 이 키가 en 객체 안에 있는지 확인
-        featuresTitle: 'Key Features of SermonNote', // 이 키가 en 객체 안에 있는지 확인
-        feature1Title: 'Smart Sermon Assistant', // 이 키가 en 객체 안에 있는지 확인
+        // ... (en 섹션도 ko 섹션과 동일하게 모든 키가 추가됩니다.)
+        getStarted: 'Get Started', 
+        featuresTitle: 'Key Features of SermonNote', 
+        feature1Title: 'Smart Sermon Assistant', 
         feature1Description: 'AI assists through the entire sermon writing process, including biblical text analysis, topic selection, and content structuring.',
         feature2Title: 'Quick Memos, Deep Reflection',
         feature2Description: 'Jot down inspirations instantly and deepen your meditation with AI assistance.',
@@ -82,7 +93,7 @@ export const translations = {
         whySermonNoteDescription: 'In our busy lives, preparing a profound sermon can be challenging. SermonNote leverages cutting-edge AI technology to help pastors and preachers save time and nurture their congregations with richer messages. From personalized sermon material generation to biblical text research assistance and inspiration management, we support every step of the process smartly.',
         privacyPolicy: 'Privacy Policy',
         termsOfService: 'Terms of Service',
-        signUpLogin: 'Sign Up / Login', // 이 키가 en 객체 안에 있는지 확인
+        signUpLogin: 'Sign Up / Login', 
         signUp: 'Sign Up',
         login: 'Login',
         emailPlaceholder: 'Email',
@@ -102,7 +113,8 @@ export const translations = {
         loginFailedGeneric: 'Login/Sign up failed',
         welcome: 'Welcome, {0}',
         logout: 'Logout',
-        // SermonTypeGrid, ExpositorySermonComponent 등에서 사용되는 번역 키들
+        
+        // Sermon Type 키들 (en)
         chooseSermonType: 'Choose Sermon Type',
         chooseSermonTypeDescription: 'Select the most suitable sermon type to start preparing your message.',
         multilingualPromo: 'SermonNote supports multilingual sermon generation!',
@@ -113,6 +125,7 @@ export const translations = {
         japanese: 'Japanese',
         russian: 'Russian',
         vietnamese: 'Vietnamese',
+        
         expositorySermon: 'Expository Sermon',
         expositorySermonDescription: 'Deeply explore biblical texts and interpret the meaning of the Word.',
         realLifeSermon: 'Real-Life Sermon',
@@ -121,6 +134,7 @@ export const translations = {
         quickMemoSermonDescription: 'Quickly generate sermon drafts based on inspired memos.',
         sermonAssistant: 'Sermon AI Assistant',
         sermonAssistantDescription: 'Get sermon ideas and generate drafts through Q&A.',
+        rebirthSermon: 'Sermon Rebirth',
         upgradeToPremium: 'Upgrade to Premium',
         sermonAssistantTitle: 'Sermon AI Assistant',
         assistantDescription: 'Ask questions about sermon texts or request sermon ideas to generate drafts.',
@@ -135,7 +149,19 @@ export const translations = {
         generatedSermonTitle: 'Generated Sermon Draft',
         memoLimitReached: 'Daily memo creation limit ({0}) reached.',
         failedToSaveMemo: 'Failed to save memo.',
+        
+        // 🚨 누락된 키 추가 (SermonSelection 컴포넌트용)
+        expositoryDesc: 'Creates deep expository sermon drafts based on a specific scripture passage.', 
+        realLifeDesc: 'Connects modern life topics with relevant scripture for sermon drafts.', 
+        quickMemoDesc: 'Instantly expand voice memos or simple ideas into sermon drafts.', 
+        rebirthDesc: 'View shared sermon archives and reconstruct them into new sermons.',
+        aiAssistantDesc: 'Generate sermon drafts on various topics through conversation with AI.',
+        upgradeDesc: 'Check Premium Membership subscription benefits and plans.',
     },
+    
+    // ----------------------------------------------------
+    // 🚨 [요청] 중국어 (zh) 섹션 업데이트
+    // ----------------------------------------------------
     zh: {
         getStarted: '开始使用',
         featuresTitle: 'SermonNote 的主要功能',
@@ -169,6 +195,8 @@ export const translations = {
         loginFailedGeneric: '登录/注册失败',
         welcome: '欢迎, {0}',
         logout: '登出',
+        
+        // Sermon Type 키들 (zh)
         chooseSermonType: '选择讲道类型',
         chooseSermonTypeDescription: '选择最适合的讲道类型，开始准备您的信息。',
         multilingualPromo: 'SermonNote 支持多语言讲道生成！',
@@ -187,6 +215,7 @@ export const translations = {
         quickMemoSermonDescription: '根据灵感笔记快速生成讲道草稿。',
         sermonAssistant: '讲道AI助手',
         sermonAssistantDescription: '通过问答获取讲道思路并生成草稿。',
+        rebirthSermon: '讲道重构(Rebirth)', // 중문 번역 수정
         upgradeToPremium: '升级到高级版',
         sermonAssistantTitle: '讲道AI助手',
         assistantDescription: '提出讲道文本问题或请求讲道思路以生成草稿。',
@@ -201,79 +230,25 @@ export const translations = {
         generatedSermonTitle: '生成的讲道草稿',
         memoLimitReached: '每日笔记创建限制（{0}次）已达。',
         failedToSaveMemo: '保存笔记失败。',
+        
+        // 🚨 누락된 키 추가 (SermonSelection 컴포넌트용)
+        expositoryDesc: '深入探讨圣经文本，阐释神话语的意义。',
+        realLifeDesc: '将现代生活问题与圣经真理联系起来，传递实用的信息。',
+        quickMemoDesc: '根据灵感笔记快速生成讲道草稿。',
+        rebirthDesc: '查阅共享讲道档案并重构为新的讲道。', // rebirthDesc 추가
+        aiAssistantDesc: '通过问答获取讲道思路并生成草稿。', // aiAssistantDesc 추가
+        upgradeDesc: '查看高级会员订阅权益和计划。',
     },
-    ja: {
-        getStarted: '始める',
-        featuresTitle: 'SermonNote の主な特徴',
-        feature1Title: 'スマートな説教アシスタント',
-        feature1Description: 'AIが聖書本文分析、テーマ選定、内容構成など、説教作成の全過程を支援します。',
-        feature2Title: 'クイックメモ、深い黙想',
-        feature2Description: 'ひらめきをすぐにメモし、AIを通じて黙想の深さを増すことができます。',
-        feature3Title: '多言語サポート',
-        feature3Description: '韓国語、英語など多様な言語で説教を生成し、学習することができます。',
-        whySermonNoteTitle: 'SermonNote が必要な理由',
-        whySermonNoteDescription: '忙しい日常の中で、深い説教を準備するのは容易ではありません。SermonNote は、最先端の AI 技術を活用し、牧師や説教者が時間を節約し、より豊かな御言葉で信徒を養育できるよう支援します。パーソナライズされた説教資料の生成から聖書本文研究補助、インスピレーション管理まで、すべてのプロセスをスマートにサポートします。',
-        privacyPolicy: 'プライバシーポリシー',
-        termsOfService: '利用規約',
-        signUpLogin: '登録 / ログイン',
-        signUp: '登録',
-        login: 'ログイン',
-        emailPlaceholder: 'メールアドレス',
-        passwordPlaceholder: 'パスワード',
-        signUpButton: '登録',
-        loginButton: 'ログイン',
-        hasAccount: 'すでにアカウントをお持ちですか？ログイン',
-        noAccount: 'アカウントをお持ちではありませんか？登録',
-        close: '閉じる',
-        signUpSuccess: '登録に成功しました！ログインしてください。',
-        emailInUseError: 'このメールアドレスは既に使用されています。',
-        invalidEmailError: '無効なメールアドレスです。',
-        operationNotAllowedError: '現在、メール/パスワードでのログインは無効になっています。',
-        weakPasswordError: 'パスワードは6文字以上にする必要があります。',
-        invalidCredentialsError: 'メールアドレスまたはパスワードが間違っています。',
-        popupClosedError: 'ポップアップはユーザーによって閉じられました。',
-        loginFailedGeneric: 'ログイン/登録に失敗しました',
-        welcome: 'ようこそ、{0}様',
-        logout: 'ログアウト',
-        chooseSermonType: '説教タイプの選択',
-        chooseSermonTypeDescription: '最適な説教タイプを選択して、メッセージの準備を開始してください。',
-        multilingualPromo: 'SermonNote は多言語説教生成をサポートしています！',
-        language: '言語',
-        korean: '韓国語',
-        english: '英語',
-        chinese: '中国語',
-        japanese: '日本語',
-        russian: 'ロシア語',
-        vietnamese: 'ベトナム語',
-        expositorySermon: '講解説教',
-        expositorySermonDescription: '聖書本文を深く掘り下げ、御言葉の意味を解き明かします。',
-        realLifeSermon: '実生活に根ざした説教',
-        realLifeSermonDescription: '現代の生活問題と聖書の真理を結びつけ、実践的なメッセージを伝えます。',
-        quickMemoSermon: 'クイックメモ説教',
-        quickMemoSermonDescription: 'ひらめいたメモに基づいて、迅速に説教草稿を生成します。',
-        sermonAssistant: '説教AIアシスタント',
-        sermonAssistantDescription: 'Q&Aを通じて説教のアイデアを得て草稿を生成します。',
-        upgradeToPremium: 'プレミアムにアップグレード',
-        sermonAssistantTitle: '説教AIアシスタント',
-        assistantDescription: '説教本文に関する質問をしたり、説教のアイデアをリクエストして草稿を生成します。',
-        commentaryLimit: 'プレミアム購読者は無制限の解説を生成できます。残り {0} 回。',
-        errorMessage: 'エラー：{0}',
-        enterMessage: 'メッセージを入力してください。',
-        initialPrompt: '何かお手伝いできることはありますか？',
-        inputPlaceholder: '質問を入力するか、説教のアイデアをリクエストしてください...',
-        sendButton: '送信',
-        generateSermonFromChat: 'チャットから説教を生成',
-        noConversationError: '会話内容がありません。まず質問をしてください。',
-        generatedSermonTitle: '生成された説教草稿',
-        memoLimitReached: '1日のメモ作成制限（{0}回）に達しました。',
-        failedToSaveMemo: 'メモの保存に失敗しました。',
-    },
+    
+    // ----------------------------------------------------
+    // 🚨 [요청] 러시아어 (ru) 섹션 업데이트
+    // ----------------------------------------------------
     ru: {
         getStarted: 'Начать',
         featuresTitle: 'Основные функции SermonNote',
         feature1Title: 'Умный помощник для проповедей',
         feature1Description: 'ИИ помогает на всех этапах написания проповеди, включая анализ библейского текста, выбор темы и структурирование содержания.',
-        feature2Title: 'Быстрые заметки, глубокие размышнения',
+        feature2Title: 'Быстрые заметки, глубокие размышления',
         feature2Description: 'Мгновенно записывайте свои вдохновения и углубляйте свои размышления с помощью ИИ.',
         feature3Title: 'Многоязычная поддержка',
         feature3Description: 'Генерируйте и изучайте проповеди на разных языках, включая корейский и английский.',
@@ -301,6 +276,8 @@ export const translations = {
         loginFailedGeneric: 'Ошибка входа/регистрации',
         welcome: 'Добро пожаловать, {0}',
         logout: 'Выйти',
+        
+        // Sermon Type 키들 (ru)
         chooseSermonType: 'Выбрать тип проповеди',
         chooseSermonTypeDescription: 'Выберите наиболее подходящий тип проповеди, чтобы начать подготовку вашего послания.',
         multilingualPromo: 'SermonNote поддерживает многоязычную генерацию проповедей!',
@@ -319,6 +296,7 @@ export const translations = {
         quickMemoSermonDescription: 'Быстро генерируйте черновики проповедей на основе вдохновляющих заметок.',
         sermonAssistant: 'Помощник ИИ для проповедей',
         sermonAssistantDescription: 'Получайте идеи для проповедей и генерируйте черновики через вопросы и ответы.',
+        rebirthSermon: 'Перерождение проповеди (Rebirth)', // 번역 수정
         upgradeToPremium: 'Обновить до Премиум',
         sermonAssistantTitle: 'Помощник ИИ для проповедей',
         assistantDescription: 'Задавайте вопросы о текстах проповеди или запрашивайте идеи для проповедей, чтобы сгенерировать черновики.',
@@ -333,7 +311,19 @@ export const translations = {
         generatedSermonTitle: 'Сгенерированный черновик проповеди',
         memoLimitReached: 'Достигнут ежедневный лимит создания заметок ({0}).',
         failedToSaveMemo: 'Не удалось сохранить заметку.',
+        
+        // 🚨 누락된 키 추가 (SermonSelection 컴포넌트용)
+        expositoryDesc: 'Глубоко исследуйте библейские тексты и интерпретируйте значение Слова.',
+        realLifeDesc: 'Свяжите проблемы современной жизни с библейскими истинами, чтобы донести практические послания.',
+        quickMemoDesc: 'Быстро генерируйте черновики проповедей на основе вдохновляющих заметок.',
+        rebirthDesc: 'Просмотр общих архивов проповедей и их перестройка в новые проповеди.', // rebirthDesc 추가
+        aiAssistantDesc: 'Получайте идеи для проповедей и генерируйте черновики через вопросы и ответы.',
+        upgradeDesc: 'Проверить преимущества и планы подписки Premium Membership.',
     },
+
+    // ----------------------------------------------------
+    // 🚨 [요청] 베트남어 (vi) 섹션 업데이트
+    // ----------------------------------------------------
     vi: {
         getStarted: 'Bắt đầu',
         featuresTitle: 'Các tính năng chính của SermonNote',
@@ -367,6 +357,8 @@ export const translations = {
         loginFailedGeneric: 'Đăng nhập/Đăng ký thất bại',
         welcome: 'Chào mừng, {0}',
         logout: 'Đăng xuất',
+        
+        // Sermon Type 키들 (vi)
         chooseSermonType: 'Chọn loại bài giảng',
         chooseSermonTypeDescription: 'Chọn loại bài giảng phù hợp nhất để bắt đầu chuẩn bị thông điệp của bạn.',
         multilingualPromo: 'SermonNote hỗ trợ tạo bài giảng đa ngôn ngữ!',
@@ -385,6 +377,7 @@ export const translations = {
         quickMemoSermonDescription: 'Nhanh chóng tạo bản nháp bài giảng dựa trên các ghi nhớ cảm hứng.',
         sermonAssistant: 'Trợ lý AI bài giảng',
         sermonAssistantDescription: 'Nhận ý tưởng bài giảng và tạo bản nháp thông qua hỏi đáp.',
+        rebirthSermon: 'Bài giảng tái tạo (Rebirth)', // 번역 수정
         upgradeToPremium: 'Nâng cấp lên Premium',
         sermonAssistantTitle: 'Trợ lý AI bài giảng',
         assistantDescription: 'Đặt câu hỏi về văn bản bài giảng hoặc yêu cầu ý tưởng bài giảng để tạo bản nháp.',
@@ -399,6 +392,94 @@ export const translations = {
         generatedSermonTitle: 'Bản nháp bài giảng đã tạo',
         memoLimitReached: 'Đã đạt giới hạn tạo ghi nhớ hàng ngày ({0}).',
         failedToSaveMemo: 'Không thể lưu ghi nhớ.',
+
+        // 🚨 누락된 키 추가 (SermonSelection 컴포넌트용)
+        expositoryDesc: 'Nghiên cứu sâu các văn bản kinh thánh và giải thích ý nghĩa của Lời Chúa.',
+        realLifeDesc: 'Kết nối các vấn đề cuộc sống đương đại với lẽ thật kinh thánh để truyền tải những thông điệp thực tiễn.',
+        quickMemoDesc: 'Nhanh chóng tạo bản nháp bài giảng dựa trên các ghi nhớ cảm hứng.',
+        rebirthDesc: 'Xem kho lưu trữ bài giảng được chia sẻ và tái tạo chúng thành bài giảng mới.', // rebirthDesc 추가
+        aiAssistantDesc: 'Nhận ý tưởng bài giảng và tạo bản nháp thông qua hỏi đáp.',
+        upgradeDesc: 'Kiểm tra các lợi ích và gói đăng ký Premium Membership.',
+    },
+    
+    // ... (ja, fil 언어 섹션은 코드가 길어 생략합니다. 실제 파일에는 그대로 유지해야 합니다.)
+    ja: {
+        getStarted: '始める',
+        featuresTitle: 'SermonNote の主な特徴',
+        feature1Title: 'スマートな説教アシスタント',
+        feature1Description: 'AIが聖書本文分析、テーマ選定、内容構成など、説教作成の全過程を支援します。',
+        feature2Title: 'クイックメモ、深い黙想',
+        feature2Description: 'ひらめきをすぐにメモし、AIを通じて黙想の深さを増すことができます。',
+        feature3Title: '多言語サポート',
+        feature3Description: '韓国語、英語など多様な言語で説教を生成し、学習することができます。',
+        whySermonNoteTitle: 'SermonNote が必要な理由',
+        whySermonNoteDescription: '忙しい日常の中で、深い説教を準備するのは容易ではありません。SermonNote は、最先端の AI 技術を活用し、牧師や説教者が時間を節約し、より豊かな御言葉で信徒を養育できるよう支援します。パーソナライズされた説教資料の生成から聖書本文研究補助、インスピレーション管理まで、すべてのプロセスをスマートにサポートします。',
+        privacyPolicy: 'プライバシーポリシー',
+        termsOfService: '利用規約',
+        signUpLogin: '登録 / ログイン',
+        signUp: '登録',
+        login: 'ログイン',
+        emailPlaceholder: 'メールアドレス',
+        passwordPlaceholder: 'パスワード',
+        signUpButton: '登録',
+        loginButton: 'ログイン',
+        hasAccount: 'すでにアカウントをお持ちですか？ログイン',
+        noAccount: 'アカウントをお持ちではありませんか？登録',
+        close: '閉じる',
+        signUpSuccess: '登録に成功しました！ログインしてください。',
+        emailInUseError: 'このメールアドレスは既に使用されています。',
+        invalidEmailError: '無効なメールアドレスです。',
+        operationNotAllowedError: '現在、メール/パスワードでのログインは無効になっています。',
+        weakPasswordError: 'パスワードは6文字以上にする必要があります。',
+        invalidCredentialsError: 'メールアドレスまたはパスワードが間違っています。',
+        popupClosedError: 'ポップアップはユーザーによって閉じられました。',
+        loginFailedGeneric: 'ログイン/登録に失敗しました',
+        welcome: 'ようこそ、{0}様',
+        logout: 'ログアウト',
+        
+        // Sermon Type 키들 (ja)
+        chooseSermonType: '説教タイプの選択',
+        chooseSermonTypeDescription: '最適な説教タイプを選択して、メッセージの準備を開始してください。',
+        multilingualPromo: 'SermonNote は多言語説教生成をサポートしています！',
+        language: '言語',
+        korean: '韓国語',
+        english: '英語',
+        chinese: '中国語',
+        japanese: '日本語',
+        russian: 'ロシア語',
+        vietnamese: 'ベトナム語',
+        expositorySermon: '講解説教',
+        expositorySermonDescription: '聖書本文を深く掘り下げ、御言葉の意味を解き明かします。',
+        realLifeSermon: '実生活に根ざした説教',
+        realLifeSermonDescription: '現代の生活問題と聖書の真理を結びつけ、実践的なメッセージを伝えます。',
+        quickMemoSermon: 'クイックメモ説教',
+        quickMemoSermonDescription: 'ひらめいたメモに基づいて、迅速に説教草稿を生成します。',
+        sermonAssistant: '説教AIアシスタント',
+        sermonAssistantDescription: 'Q&Aを通じて説教のアイデアを得て草稿を生成します。',
+        rebirthSermon: '説教リバース(Rebirth)', // 번역 수정
+        upgradeToPremium: 'プレミアムにアップグレード',
+        sermonAssistantTitle: '説教AIアシスタント',
+        assistantDescription: '説教本文に関する質問をしたり、説教のアイデアをリクエストして草稿を生成します。',
+        commentaryLimit: 'プレミアム購読者は無制限の解説を生成できます。残り {0} 回。',
+        errorMessage: 'エラー：{0}',
+        enterMessage: 'メッセージを入力してください。',
+        initialPrompt: '何かお手伝いできることはありますか？',
+        inputPlaceholder: '質問を入力するか、説教のアイデアをリクエストしてください...',
+        sendButton: '送信',
+        generateSermonFromChat: 'チャットから説教を生成',
+        noConversationError: '会話内容がありません。まず質問をしてください。',
+        generatedSermonTitle: '生成された説教草稿',
+        memoLimitReached: '1日のメモ作成制限（{0}回）に達しました。',
+        failedToSaveMemo: 'メモの保存に失敗しました。',
+        
+        // 🚨 누락된 키 추가 (SermonSelection 컴포넌트용)
+        expositoryDesc: '聖書本文を深く掘り下げ、御言葉の意味を解き明かします。',
+        realLifeDesc: '現代の生活問題と聖書の真理を結びつけ、実践的なメッセージを伝えます。',
+        quickMemoDesc: 'ひらめいたメモに基づいて、迅速に説教草稿を生成します。',
+        rebirthDesc: '共有された説教アーカイブを閲覧し、新しい説教として再構成します。', // rebirthDesc 추가
+        aiAssistantDesc: 'Q&Aを通じて説教のアイデアを得て草稿を生成します。',
+        upgradeDesc: 'プレミアム会員の購読特典とプランを確認します。',
+
     },
     fil: {
         getStarted: 'Magsimula',
@@ -433,6 +514,8 @@ export const translations = {
         loginFailedGeneric: 'Nabigo ang pag-login/pag-sign up',
         welcome: 'Maligayang pagdating, {0}',
         logout: 'Mag-logout',
+
+        // Sermon Type 키들 (fil)
         chooseSermonType: 'Pumili ng Uri ng Sermon',
         chooseSermonTypeDescription: 'Piliin ang pinakaangkop na uri ng sermon upang simulan ang paghahanda ng iyong mensahe.',
         multilingualPromo: 'Sinusuportahan ng SermonNote ang pagbuo ng multilingual na sermon!',
@@ -451,6 +534,7 @@ export const translations = {
         quickMemoSermonDescription: 'Mabilis na bumuo ng mga draft ng sermon batay sa mga inspiradong memo.',
         sermonAssistant: 'Sermon AI Assistant',
         sermonAssistantDescription: 'Kumuha ng mga ideya sa sermon at bumuo ng mga draft sa pamamagitan ng Q&A.',
+        rebirthSermon: 'Sermon Rebirth',
         upgradeToPremium: 'Mag-upgrade sa Premium',
         sermonAssistantTitle: 'Sermon AI Assistant',
         assistantDescription: 'Magtanong tungkol sa mga teksto ng sermon o humiling ng mga ideya sa sermon upang makabuo ng mga draft.',
@@ -465,6 +549,14 @@ export const translations = {
         generatedSermonTitle: 'Binuong Draft ng Sermon',
         memoLimitReached: 'Naabot ang limitasyon sa paglikha ng pang-araw-araw na memo ({0}).',
         failedToSaveMemo: 'Nabigo ang pag-save ng memo.',
+
+        // 🚨 누락된 키 추가 (SermonSelection 컴포넌트용)
+        expositoryDesc: 'Lubusang suriin ang mga teksto ng Bibliya at bigyang-kahulugan ang kahulugan ng Salita.',
+        realLifeDesc: 'Ikonekta ang mga isyu sa kontemporaryong buhay sa mga katotohanan ng Bibliya upang maghatid ng mga praktikal na mensahe.',
+        quickMemoDesc: 'Mabilis na bumuo ng mga draft ng sermon batay sa mga inspiradong memo.',
+        rebirthDesc: 'Tingnan ang ibinahaging mga archive ng sermon at buuin itong muli sa mga bagong sermon.', // rebirthDesc 추가
+        aiAssistantDesc: 'Kumuha ng mga ideya sa sermon at bumuo ng mga draft sa pamamagreen ng Q&A.',
+        upgradeDesc: 'Tingnan ang mga benepisyo at plano ng Premium Membership subscription.',
     },
 };
 

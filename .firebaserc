@@ -1,5 +1,15 @@
 {
   "projects": {
-    "default": "sermonnote-live"
-  }
+    "default": "sermonnote-new-gen-53302"
+  },
+  "targets": {
+    "sermonnote-new-gen-53302": {
+      "hosting": {
+        "next": [
+          "sermonnote-project"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

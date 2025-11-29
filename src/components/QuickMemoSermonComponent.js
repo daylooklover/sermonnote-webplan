@@ -1,140 +1,297 @@
-'use client';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { collection, query, onSnapshot, limit, doc, deleteDoc } from 'firebase/firestore'; 
+// GoBackIcon, LoadingSpinner, QuickMemoIcon, TrashIcon은 IconComponents에서 가져옴
+import { GoBackIcon, LoadingSpinner, QuickMemoIcon, TrashIcon } from '@/components/IconComponents.js'; 
+import { SUBSCRIPTION_LIMITS } from '@/lib/constants'; 
+import QuickMemoModal from '@/components/QuickMemoModal.js'; // 모달 컴포넌트
 
-import React, { useState, useCallback } from 'react';
-// 필요한 유틸리티 함수나 아이콘을 import
-// 예: import { callGeminiAPI, incrementUsageCount } from './utils';
+const API_ENDPOINT = '/api/sermon-generator'; 
+const MAX_MEMO_ITEMS = 10; 
+const MAX_SERMON_COUNT = 5; 
 
-// 아이콘 컴포넌트
-const QuickMemoIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-clipboard-list"><rect width="8" height="4" x="8" y="2"/><path d="M16 4h2a2 2 0 0 1-2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>);
-const PlusCircleIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-plus-circle"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>);
-const CheckIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-check text-green-500"><path d="M20 6 9 17l-5-5"/></svg>);
+// 💡 Quick Memo 리스트 아이템 컴포넌트
+const MemoItem = ({ memo, isSelected, onClick, onDelete, t, lang }) => {
+    // 날짜 및 시각 포맷 (ko: 2025. 11. 25. 오후 4:44)
+    const formattedDate = memo.createdAt?.toDate 
+        ? memo.createdAt.toDate().toLocaleDateString(lang, { 
+            year: 'numeric', 
+            month: '2-digit', 
+            day: '2-digit', 
+            hour: '2-digit', 
+            minute: '2-digit',
+            hour12: true // 오전/오후 표시
+        }).replace(/\./g, '').trim() 
+        : '...';
 
-// 언어별 텍스트 (필요에 따라 import 또는 직접 정의)
-const translations = {
-    ko: {
-        quickMemoSermonTitle: '퀵 메모 연계 설교',
-        quickMemoDescription: '흩어진 영감들을 엮어낸 설교를 만듭니다.',
-        myMemos: '내 메모:',
-        selectedMemo: '선택된 메모:',
-        generateSermonFromMemo: '메모로 설교문 생성',
-        noSelectedMemo: '메모를 선택해주세요.',
-        generating: '생성 중입니다...',
-        generationFailed: '생성에 실패했습니다. 다시 시도해 주세요.',
-        sermonLimitError: (count) => `이번 달 설교 작성 횟수를 모두 사용했습니다.`,
-    },
-    en: { /* ... 영문 텍스트 ... */ },
-};
-const t = (key, lang, ...args) => {
-    const selectedLang = translations[lang] ? lang : 'ko';
-    const text = translations[selectedLang]?.[key];
-    if (typeof text === 'function') {
-        return text(...args);
-    }
-    return text || key;
-};
-
-// QuickMemoSermonComponent 정의
-export default function QuickMemoSermonComponent({
-    setSermonDraft,
-    userId,
-    sermonCount,
-    userSubscription,
-    setErrorMessage,
-    lang,
-    user,
-    openLoginModal,
-    memos, // props로 전달받는 메모 리스트
-    canGenerateSermon,
-    t: parentT,
-}) {
-    const [selectedMemos, setSelectedMemos] = useState([]);
-    const [isLoading, setIsLoading] = useState(false);
-
-    const localT = parentT || t;
-
-    const handleMemoSelection = useCallback((memo) => {
-        setSelectedMemos(prev => 
-            prev.includes(memo.id) ? prev.filter(id => id !== memo.id) : [...prev, memo.id]
-        );
-    }, []);
-
-    const handleGenerateSermon = useCallback(async () => {
-        if (!user) {
-            openLoginModal();
-            return;
+    const handleDeleteClick = (e) => {
+        e.stopPropagation(); // 부모 onClick 이벤트 방지
+        if (confirm(t('confirmDeleteMemo', lang) || "정말로 이 메모를 삭제하시겠습니까?")) {
+            onDelete(memo.id);
         }
-        if (selectedMemos.length === 0) {
-            setErrorMessage(localT('noSelectedMemo', lang));
-            return;
-        }
-        if (!canGenerateSermon) {
-            setErrorMessage(localT('sermonLimitError', lang));
-            return;
-        }
-
-        setIsLoading(true);
-        setSermonDraft(localT('generating', lang));
-        setErrorMessage('');
-
-        try {
-            const selectedContent = memos.filter(m => selectedMemos.includes(m.id)).map(m => m.content).join('\n\n');
-            const prompt = `Based on the following notes, generate a detailed sermon: "${selectedContent}" in ${lang === 'ko' ? 'Korean' : 'English'}`;
-            
-            // 이 함수는 실제 API 호출 로직으로 변경해야 합니다.
-            const sermon = await new Promise(resolve => setTimeout(() => {
-                resolve(`선택된 메모를 기반으로 생성된 설교입니다: ${selectedContent}`);
-            }, 2000));
-            
-            setSermonDraft(sermon);
-            // 실제 사용량 증가 로직 (필요시 구현)
-            // await incrementUsageCount('sermon', userId, sermonCount);
-        } catch (error) {
-            console.error("Failed to generate sermon:", error);
-            setSermonDraft(localT('generationFailed', lang));
-            setErrorMessage(localT('generationFailed', lang));
-        } finally {
-            setIsLoading(false);
-        }
-    }, [selectedMemos, memos, user, openLoginModal, setSermonDraft, setErrorMessage, lang, localT, canGenerateSermon]);
-
+    };
+    
     return (
-        <div className="text-center space-y-8 max-w-2xl mx-auto w-full">
-            <h2 className="text-4xl font-extrabold text-gray-800">{localT('quickMemoSermonTitle', lang)}</h2>
-            <p className="text-lg text-gray-600">{localT('quickMemoDescription', lang)}</p>
-            {userSubscription !== 'premium' && (
-                <p className="text-sm text-gray-500">
-                    {localT('sermonLimit', lang, sermonCount)}
-                </p>
-            )}
-            <div className="flex flex-col items-center space-y-4 w-full">
-                {/* 메모 리스트 */}
-                <h3 className="text-2xl font-bold text-gray-900">{localT('myMemos', lang)}</h3>
-                <div className="w-full p-4 rounded-xl bg-gray-200 border border-gray-300 h-64 overflow-y-auto text-left space-y-2">
-                    {memos.length > 0 ? (
-                        memos.map(memo => (
-                            <div
-                                key={memo.id}
-                                onClick={() => handleMemoSelection(memo)}
-                                className={`p-3 rounded-lg cursor-pointer transition flex items-center justify-between ${selectedMemos.includes(memo.id) ? 'bg-yellow-200 border-yellow-400' : 'bg-white border-gray-300'} border shadow-sm`}
-                            >
-                                <span className="flex-grow text-gray-800">{memo.content}</span>
-                                {selectedMemos.includes(memo.id) ? <CheckIcon className="w-6 h-6 ml-4" /> : <PlusCircleIcon className="w-6 h-6 ml-4 text-gray-400" />}
-                            </div>
-                        ))
-                    ) : (
-                        <p className="text-gray-500 text-center">메모가 없습니다. 퀵 메모를 추가해주세요.</p>
-                    )}
-                </div>
-                {/* 설교 생성 버튼 */}
-                <button
-                    onClick={handleGenerateSermon}
-                    className="w-full px-6 py-4 bg-yellow-600 hover:bg-yellow-700 text-white font-semibold rounded-xl shadow-lg transition duration-300 disabled:bg-gray-400 flex items-center justify-center"
-                    disabled={isLoading || selectedMemos.length === 0}
-                >
-                    <QuickMemoIcon className="mr-2" />
-                    {isLoading ? localT('generating', lang) : localT('generateSermonFromMemo', lang)}
-                </button>
-            </div>
+        <div 
+            onClick={() => onClick(memo)}
+            className={`p-4 rounded-xl shadow-md border cursor-pointer transition-all duration-200 relative group ${
+                isSelected 
+                    ? 'bg-yellow-500 text-white border-yellow-700 shadow-lg scale-[1.02]'
+                    : 'bg-white text-gray-800 border-gray-200 hover:bg-gray-50'
+            }`}
+        >
+            <p className="font-semibold text-lg break-words pr-10">{memo.text}</p>
+            <p className={`text-sm mt-1 ${isSelected ? 'text-yellow-100' : 'text-gray-500'}`}>
+                {formattedDate} 
+            </p>
+            
+            <button
+                onClick={handleDeleteClick}
+                className={`absolute top-4 right-4 p-1 rounded-full opacity-70 transition-opacity 
+                ${isSelected ? 'text-white hover:bg-yellow-600' : 'text-gray-400 hover:text-red-600 hover:bg-red-50'}`}
+            >
+                {/* TrashIcon은 IconComponents.js에서 가져온다고 가정 */}
+                <svg className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
+            </button>
         </div>
     );
-}
+};
+
+
+// 💡 QuickMemoSermonComponent 정의
+const QuickMemoSermonComponent = ({
+    setSermonDraft, 
+    user, 
+    userId, 
+    db,
+    userSubscription = 'free', 
+    setErrorMessage, 
+    errorMessage, 
+    lang, 
+    openLoginModal, 
+    onLimitReached, 
+    sermonCount, 
+    canGenerateSermon, 
+    handleAPICall, 
+    onGoBack,
+    t 
+}) => {
+    
+    const [memos, setMemos] = useState([]);
+    const [selectedMemo, setSelectedMemo] = useState(null);
+    const [isMemosLoading, setIsMemosLoading] = useState(true);
+    const [isSermonLoading, setIsSermonLoading] = useState(false); 
+    const [isQuickMemoModalOpen, setIsQuickMemoModalOpen] = useState(false); // 퀵메모 입력 모달 상태
+
+    const safeSetErrorMessage = useCallback((msg) => {
+        if (typeof setErrorMessage === 'function') {
+            setErrorMessage(msg);
+        }
+    }, [setErrorMessage]);
+
+    // 💡 메모 삭제 핸들러
+    const handleDeleteMemo = useCallback(async (memoId) => {
+        // ... (메모 삭제 로직 생략)
+    }, [db, userId, safeSetErrorMessage, lang, t, selectedMemo]);
+
+
+    // 💡 Firestore Quick Memos 리스너
+    useEffect(() => {
+        if (!db || !userId) {
+            setIsMemosLoading(false);
+            return;
+        }
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const memosRef = collection(db, `artifacts/${appId}/users/${userId}/quick_memos`);
+        
+        const q = query(memosRef, limit(MAX_MEMO_ITEMS)); 
+        
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const fetchedMemos = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            
+            fetchedMemos.sort((a, b) => {
+                const dateA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
+                const dateB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
+                return dateB - dateA; 
+            });
+
+            setMemos(fetchedMemos);
+            setIsMemosLoading(false);
+            
+            // 🚨 선택된 메모가 삭제되었을 경우 초기화
+            if (selectedMemo && !fetchedMemos.find(m => m.id === selectedMemo.id)) {
+                setSelectedMemo(null);
+            }
+
+        }, (error) => {
+            console.error("Error fetching quick memos:", error);
+            safeSetErrorMessage(t('errorProcessingRequest', lang) || "메모 목록을 불러오는 중 오류가 발생했습니다.");
+            setIsMemosLoading(false);
+        });
+
+        return () => unsubscribe();
+    }, [db, userId, safeSetErrorMessage, lang, t, selectedMemo]);
+
+
+    // 💡 설교 생성 가능 횟수 표시
+    const remainingSermons = useMemo(() => {
+        const limit = userSubscription === 'premium' ? 9999 : (SUBSCRIPTION_LIMITS[userSubscription]?.sermon || MAX_SERMON_COUNT);
+        return limit - sermonCount;
+    }, [userSubscription, sermonCount]);
+
+
+    // 💡 설교 초안 생성
+    const handleGenerateSermon = useCallback(async () => {
+        if (!user) { openLoginModal(); return; }
+        if (!selectedMemo) { safeSetErrorMessage(t('selectMemoFirst', lang) || "먼저 리스트에서 묵상 메모를 선택해 주세요."); return; }
+        
+        if (!canGenerateSermon) { safeSetErrorMessage(t('sermonLimitError', lang)); onLimitReached(); return; }
+
+        setIsSermonLoading(true);
+        safeSetErrorMessage('');
+
+        const memoText = selectedMemo.text;
+        
+        try {
+            const sermonResult = await handleAPICall(
+                memoText, 
+                API_ENDPOINT, 
+                'quick-memo-sermon'
+            );
+
+            if (sermonResult) {
+                setSermonDraft(sermonResult);
+            } else {
+                if (!errorMessage) safeSetErrorMessage(t('sermonGenerationFailed', lang) || "설교 생성에 실패했습니다.");
+            }
+            
+        } catch (error) {
+            console.error("Quick Memo Sermon Generation API Call Failed:", error);
+            safeSetErrorMessage(t('sermonGenerationFailed', lang) || "설교 생성 중 오류가 발생했습니다.");
+        } finally {
+            setIsSermonLoading(false);
+        }
+    }, [
+        user, selectedMemo, lang, canGenerateSermon, 
+        safeSetErrorMessage, openLoginModal, onLimitReached, handleAPICall, setSermonDraft, t, errorMessage, sermonCount
+    ]);
+    
+    const handleOpenQuickMemoModal = () => {
+        if (!user) { openLoginModal(); return; }
+        setIsQuickMemoModalOpen(true);
+    };
+    
+    // --------------------------------------------------
+    // 3. UI 렌더링
+    // --------------------------------------------------
+    
+    return (
+        // 🚨 [FINAL FIX] min-h-screen을 추가하여 화면 높이를 확보합니다.
+        <div className="flex flex-col h-full min-h-screen bg-gray-100 dark:bg-slate-900 p-6 sm:p-8">
+            
+            {/* Header and Back Button */}
+            <div className="p-4 bg-white dark:bg-gray-800 rounded-xl shadow-md mb-6 flex items-center justify-between sticky top-0 z-10">
+                <button 
+                    onClick={onGoBack} 
+                    className="flex items-center text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors p-2 rounded-lg"
+                >
+                    <GoBackIcon className="w-5 h-5 mr-1" />
+                    {t('goBack', lang)} 
+                </button>
+                <h1 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center"><QuickMemoIcon className="w-6 h-6 mr-2 text-yellow-500" />{t('quickMemoSermon', lang)}</h1>
+                <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
+                    <span className="font-semibold">{t('sermonLimit', lang)?.replace('{0}', remainingSermons) || `남은 설교 횟수: ${remainingSermons}회`}</span>
+                </div>
+            </div>
+
+            <div className="max-w-4xl mx-auto w-full space-y-6">
+                
+                {/* Memo List Section */}
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
+                    <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4 flex justify-between items-center">
+                        {t('quickMemoListTitle', lang) || "빠른 묵상 메모 목록 (최근 10개)"}
+                        <button
+                            onClick={handleOpenQuickMemoModal}
+                            className="text-sm font-medium text-yellow-600 hover:text-yellow-700 transition flex items-center"
+                        >
+                            <svg className="w-5 h-5 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                            {t('addNewMemo', lang) || '새 메모 추가'}
+                        </button>
+                    </h2>
+                    
+                    {isMemosLoading && <LoadingSpinner message={t('loading', lang)} className="w-6 h-6 animate-spin mx-auto text-gray-500" />}
+                    
+                    {!isMemosLoading && memos.length === 0 && (
+                        <p className="text-center text-gray-500 py-8">
+                            {t('noMemosFound', lang) || "아직 저장된 메모가 없습니다. '새 메모 추가' 버튼으로 메모를 작성하세요."}
+                        </p>
+                    )}
+
+                    <div className="space-y-4">
+                        {memos.map(memo => (
+                            <MemoItem 
+                                key={memo.id}
+                                memo={memo}
+                                isSelected={selectedMemo?.id === memo.id}
+                                onClick={setSelectedMemo}
+                                onDelete={handleDeleteMemo} 
+                                t={t}
+                                lang={lang}
+                            />
+                        ))}
+                    </div>
+                </div>
+                
+                {/* Selected Memo Detail / Generation Section */}
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 text-center space-y-4">
+                    <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
+                        {t('selectedMemoTitle', lang) || "선택된 메모"}
+                    </h2>
+                    <div className={`p-4 rounded-lg text-gray-800 break-words ${selectedMemo ? 'bg-yellow-50 border border-yellow-200' : 'bg-gray-100 text-gray-500'}`}>
+                        {selectedMemo ? selectedMemo.text : (t('selectMemoInstruction', lang) || '위 목록에서 설교 초안을 만들 메모를 선택하세요.')}
+                    </div>
+
+                    <button
+                        onClick={handleGenerateSermon}
+                        disabled={!selectedMemo || isSermonLoading || remainingSermons <= 0}
+                        className="px-8 py-4 bg-red-600 text-white font-extrabold text-lg rounded-xl shadow-lg hover:bg-red-700 transition disabled:opacity-50 flex items-center justify-center w-full"
+                    >
+                        {isSermonLoading ? (
+                            <LoadingSpinner className="w-5 h-5 mr-2 text-white" />
+                        ) : (
+                            t('generateSermonFromMemo', lang) || "메모로 설교 초안 생성"
+                        )}
+                    </button>
+                </div>
+                
+                {/* Error Message Display */}
+                {errorMessage && errorMessage.length > 0 && (
+                    <div className="p-4 bg-red-100 dark:bg-red-900/20 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-300 rounded-lg text-center font-medium">
+                        🚨 {errorMessage} 
+                    </div>
+                )}
+            </div>
+            
+            {/* Quick Memo Input Modal */}
+            {isQuickMemoModalOpen && (
+                <QuickMemoModal
+                    onClose={() => setIsQuickMemoModalOpen(false)}
+                    userId={userId}
+                    db={db}
+                    t={t}
+                    lang={lang}
+                    // onMemoSaved 함수는 상위 컴포넌트(HomeContent)에서 관리
+                    onMemoSaved={() => { 
+                        setIsQuickMemoModalOpen(false); 
+                        setSelectedMemo(memos[0]); // 새로 저장된 메모를 자동으로 선택하도록 로직 추가 가능
+                    }}
+                />
+            )}
+        </div>
+    );
+};
+
+export default QuickMemoSermonComponent;

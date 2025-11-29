@@ -2,12 +2,11 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      // 💡 프로젝트의 모든 소스 코드를 src/* 아래에서 찾도록 설정합니다.
-      // @/lib/constants 는 이제 ./src/lib/constants 로 해석됩니다.
-      "@/*": ["./src/*"], 
-      
-      // 💡 '@components'와 같이 특정 폴더에 대한 별칭을 원한다면 다음과 같이 명시합니다.
-      "@components/*": ["./src/components/*"] 
+      // 기존 @/* 별칭이 이미 src/*를 가리키므로, 
+      // @/components/*를 따로 정의할 필요는 없으나, 명시적으로 하려면 이렇게 합니다.
+      "@/components/*": ["./src/components/*"], 
+      // 기존 "@components/*"는 삭제하거나 @/*에 흡수됩니다.
+      "@/*": ["./src/*"] 
     }
   },
   "include": ["src/**/*"]

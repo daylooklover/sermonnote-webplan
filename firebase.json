@@ -1,11 +1,17 @@
 {
   "hosting": {
-    "public": "public",
+   
+ 
+    
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
     ],
+    
+   
+    "source": ".", 
+    
     "rewrites": [
       {
         "source": "**",
@@ -15,6 +21,7 @@
   },
   "functions": {
     "source": "functions",
-    "runtime": "nodejs20"
+    "runtime": "nodejs20",
+    "region": "asia-northeast3" 
   }
 }

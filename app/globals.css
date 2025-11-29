@@ -1,4 +1,4 @@
-/* 🚨 Next.js 환경에서 Tailwind CSS를 활성화하는 핵심 지시문입니다. */
+/* globals.css 또는 유사한 전역 CSS 파일에 추가 */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -12,5 +12,27 @@
   }
   h1, h2, h3 {
     @apply font-extrabold tracking-tight;
+  }
+}
+
+/* ----------------------------------------------------- */
+/* 💡 배경 애니메이션 키프레임 추가 */
+/* ----------------------------------------------------- */
+@keyframes move-background {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 100% 100%;
+  }
+}
+
+/* 💡 [수정] 별이 반짝이는 효과를 위한 키프레임 수정 (opacity 변화 폭 확대) */
+@keyframes twinkle {
+  0%, 100% {
+    opacity: 0.05; /* 더 어둡게 시작 */
+  }
+  50% {
+    opacity: 1; /* 완전히 밝게 반짝임 */
   }
 }
