@@ -59,7 +59,6 @@ const getFirebaseErrorMessage = (errorCode, t) => {
 
 const LoginModal = ({ onClose, Instance, onLoginSuccess, t = dummyT, lang = 'ko' }) => {
     
-    // 🚨 [FIX]: 모든 useState 호출을 조건문(if)보다 앞선 최상위 레벨로 이동했습니다.
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState(''); 
@@ -147,8 +146,8 @@ const LoginModal = ({ onClose, Instance, onLoginSuccess, t = dummyT, lang = 'ko'
         }
     };
     
+    // 🚨 FIX: t 함수를 사용하여 번역 적용
     const tabLabels = [
-        // 🚨 FIX: t 함수를 사용하여 번역 적용
         { key: 'login', label: t('login') || 'Login' },
         { key: 'register', label: t('register') || 'Register' },
     ];
@@ -156,14 +155,14 @@ const LoginModal = ({ onClose, Instance, onLoginSuccess, t = dummyT, lang = 'ko'
     const getHeaderTitle = () => {
         if (authMode === 'reset') return t('auth_reset_title') || 'Password Reset';
         // 🚨 FIX: t 함수를 사용하여 번역 적용
-        return authMode === 'register' ? (t('auth_register_title') || 'Register') : (t('login') || 'Login');
+        return authMode === 'register' ? (t('register') || 'Register') : (t('login') || 'Login');
     };
     
     const getButtonText = () => {
         // 🚨 FIX: t 함수를 사용하여 번역 적용
         if (isLoading) return authMode === 'register' ? (t('auth_registering') || 'Registering...') : (t('auth_processing') || 'Processing...');
         if (authMode === 'reset') return t('auth_send_reset') || 'Send Reset Email';
-        return authMode === 'register' ? (t('auth_register_button') || 'Register') : (t('login') || 'Login');
+        return authMode === 'register' ? (t('register') || 'Register') : (t('login') || 'Login');
     };
 
     return (
@@ -172,26 +171,26 @@ const LoginModal = ({ onClose, Instance, onLoginSuccess, t = dummyT, lang = 'ko'
             onClick={handleBackdropClick}
         >
             <div 
-                className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md border border-gray-200"
+                className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm border border-gray-100 transform transition-all duration-300 scale-100" // 디자인 개선: 더 큰 패딩, 더 둥근 모서리, max-w-sm
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-xl font-bold text-gray-900">{getHeaderTitle()}</h3>
-                    <button onClick={onClose} className="text-gray-500 hover:text-gray-900 transition"><CloseIcon /></button>
+                <div className="flex justify-between items-center mb-6"> {/* 여백 증가 */}
+                    <h3 className="text-2xl font-extrabold text-gray-900">{getHeaderTitle()}</h3> {/* 폰트 강조 */}
+                    <button onClick={onClose} className="text-gray-500 hover:text-red-600 transition p-1 rounded-full hover:bg-gray-100"><CloseIcon /></button>
                 </div>
                 
                 {/* 탭 네비게이션 (재설정 모드가 아닐 때만 표시) */}
                 {authMode !== 'reset' && (
-                    <div className="flex mb-6 border-b border-gray-200">
+                    <div className="flex mb-8 border-b border-gray-200"> {/* 여백 및 구분선 강조 */}
                         {tabLabels.map(tab => (
                             <button
                                 key={tab.key}
-                                onClick={() => {setAuthMode(tab.key); setError(''); setMessage('');}}
-                                className={`flex-1 py-3 text-sm font-medium transition-colors ${
-                                    authMode === tab.key
-                                        ? 'border-b-2 border-red-600 text-red-600'
+                                onClick={() => {setAuthMode(tab.key); setEmail(''); setPassword(''); setConfirmPassword(''); setError(''); setMessage('');}}
+                                className={`flex-1 pb-3 text-base font-semibold transition-colors relative 
+                                    ${authMode === tab.key
+                                        ? 'text-red-600 after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:bg-red-600'
                                         : 'text-gray-500 hover:text-gray-700'
-                                }`}
+                                    }`}
                             >
                                 {tab.label}
                             </button>
@@ -201,7 +200,7 @@ const LoginModal = ({ onClose, Instance, onLoginSuccess, t = dummyT, lang = 'ko'
                 
                 {/* 알림 메시지 */}
                 {(error || message) && (
-                    <div className={`p-3 mb-4 rounded-lg text-sm ${error ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                    <div className={`p-3 mb-4 rounded-lg text-sm font-medium ${error ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-green-100 text-green-700 border border-green-200'}`}>
                         {error || message}
                     </div>
                 )}
@@ -212,8 +211,8 @@ const LoginModal = ({ onClose, Instance, onLoginSuccess, t = dummyT, lang = 'ko'
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        placeholder={t('auth_placeholder_email') || "Email"}
-                        className="w-full p-3 rounded-md bg-gray-100 text-gray-800 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-red-500"
+                        placeholder={t('email_placeholder') || "Email Address"} // 다국어 키 사용
+                        className="w-full p-3 rounded-lg bg-white text-gray-800 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-red-500 transition duration-150" // 디자인 개선: 둥근 모서리, 포커스 링
                         required
                         disabled={isLoading}
                     />
@@ -225,8 +224,8 @@ const LoginModal = ({ onClose, Instance, onLoginSuccess, t = dummyT, lang = 'ko'
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                placeholder={t('auth_placeholder_password') || "Password (6+ characters)"}
-                                className="w-full p-3 rounded-md bg-gray-100 text-gray-800 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-red-500"
+                                placeholder={t('password_placeholder') || "Password (6+ characters)"} // 다국어 키 사용
+                                className="w-full p-3 rounded-lg bg-white text-gray-800 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-red-500 transition duration-150"
                                 required
                                 disabled={isLoading}
                             />
@@ -236,8 +235,8 @@ const LoginModal = ({ onClose, Instance, onLoginSuccess, t = dummyT, lang = 'ko'
                                     type="password"
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
-                                    placeholder={t('auth_placeholder_confirm_password') || "Confirm Password"}
-                                    className="w-full p-3 rounded-md bg-gray-100 text-gray-800 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-red-500"
+                                    placeholder={t('auth_placeholder_confirm_password') || "Confirm Password"} // 다국어 키 사용
+                                    className="w-full p-3 rounded-lg bg-white text-gray-800 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-red-500 transition duration-150"
                                     required
                                     disabled={isLoading}
                                 />
@@ -251,16 +250,16 @@ const LoginModal = ({ onClose, Instance, onLoginSuccess, t = dummyT, lang = 'ko'
                             <button 
                                 type="button" 
                                 onClick={() => {setAuthMode('reset'); setError(''); setMessage('');}}
-                                className="text-sm text-gray-500 hover:text-red-600 transition-colors"
+                                className="text-sm text-gray-500 hover:text-red-600 transition-colors font-medium"
                             >
-                                {t('auth_forgot_password') || 'Forgot your password?'}
+                                {t('forgot_password') || 'Forgot your password?'} {/* 다국어 키 사용 */}
                             </button>
                         </div>
                     )}
                     
                     <button
                         type="submit"
-                        className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl shadow-lg transition duration-300 disabled:bg-gray-400"
+                        className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow-lg transition duration-300 disabled:bg-gray-400 disabled:shadow-none mt-6" // 디자인 개선: 굵은 폰트, 둥근 모서리, 쉐도우
                         disabled={isLoading}
                     >
                         {getButtonText()}
@@ -268,24 +267,25 @@ const LoginModal = ({ onClose, Instance, onLoginSuccess, t = dummyT, lang = 'ko'
                     
                     {/* 재설정 모드에서 돌아가기 버튼 */}
                     {authMode === 'reset' && (
-                                <div className="mt-4 text-center text-sm text-gray-500">
-                                    <button
-                                        onClick={() => {setAuthMode('login'); setError(''); setMessage('');}}
-                                        className="ml-1 text-red-600 hover:text-red-800 font-medium transition-colors"
-                                        type="button"
-                                    >
-                                        {t('auth_back_to_login') || 'Back to Login'}
-                                    </button>
-                                </div>
+                        <div className="mt-6 text-center text-sm text-gray-500 pt-2 border-t border-gray-100">
+                            {t('auth_reset_prompt') || 'Remembered your password?'}
+                            <button
+                                onClick={() => {setAuthMode('login'); setError(''); setMessage('');}}
+                                className="ml-1 text-red-600 hover:text-red-800 font-semibold transition-colors"
+                                type="button"
+                            >
+                                {t('auth_back_to_login') || 'Back to Login'}
+                            </button>
+                        </div>
                     )}
                     
                     {/* 익명 사용 계속 링크 */}
                     {authMode !== 'reset' && (
-                        <p className="text-center text-sm mt-4">
+                        <p className="text-center text-sm mt-4 pt-2 border-t border-gray-100"> {/* 구분선 추가 */}
                             <button
                                 type="button" 
                                 onClick={onClose} 
-                                className="text-gray-500 hover:text-gray-700 font-medium"
+                                className="text-gray-500 hover:text-red-600 font-medium transition-colors"
                             >
                                 {t('auth_continue_anon') || 'Continue using the app without logging in'}
                             </button>

@@ -1,55 +1,47 @@
-// src/lib/api.js
+import { getAuth } from 'firebase/auth'; // Firebase Auth Client SDK
+// 만약 'firebaseConfig' 파일에서 앱 객체를 가져온다면 아래 주석을 해제하세요.
+// import { app } from './firebaseConfig'; 
 
 /**
- * AI API 엔드포인트 호출을 처리하는 범용 함수
- * @param {string} prompt - AI에게 보낼 프롬프트 텍스트
- * @param {object} options - 추가 옵션 (예: lang, type)
- * @returns {Promise<string>} - API 응답 텍스트
+ * 서버 API (/api/sermon-generator)에 안전하게 요청을 보냅니다.
+ * 이 함수는 자동으로 Firebase ID 토큰을 획득하여 Authorization 헤더에 추가합니다.
+ * @param {string} type - 요청 타입 ('quick-memo-sermon', 'real-life-recommendation' 등)
+ * @param {object} payload - 서버에 보낼 데이터 (prompt, history 등)
+ * @returns {Promise<object>} 서버 응답 데이터
  */
-export async function callAPI(prompt, options = {}) {
-    // 🚀 [개선]: 기본 옵션 설정
-    const { lang = 'ko', type = 'text' } = options;
+export async function callSermonGenerator(type, payload) {
+    // 1. Firebase Auth 인스턴스 및 현재 사용자 가져오기
+    const auth = getAuth();
+    const user = auth.currentUser;
 
-    try {
-        const response = await fetch('/api/generate', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                prompt: prompt,
-                lang: lang,
-                type: type, // 'scripture' 또는 다른 타입
-            }),
-        });
-
-        if (!response.ok) {
-            // 서버에서 에러 응답(4xx, 5xx)이 온 경우
-            const errorData = await response.json();
-            
-            // 🚀 [수정/개선]: 서버에서 반환한 상세 에러 메시지(detail)를 활용합니다.
-            const detailMessage = errorData.detail || errorData.message || 'Unknown error';
-            
-            console.error(`Server API Error (${response.status}):`, errorData);
-            
-            // 클라이언트에게 반환될 에러 메시지에 상세 정보를 포함시킵니다.
-            throw new Error(`API call failed with status ${response.status}: ${detailMessage}`);
-        }
-
-        const data = await response.json();
-        
-        // 🚀 [개선]: 서버 응답 데이터를 콘솔에 출력하여 디버깅을 돕습니다.
-        console.log(`[callAPI] Server response data for type=${type}:`, data);
-        
-        // 서버 응답 구조: { text: '...', result: '...' }를 따릅니다.
-        // text 필드가 가장 중요하며, 없으면 result, 그마저도 없으면 빈 문자열 반환
-        return data.text || data.result || ''; 
-
-    } catch (error) {
-        // 네트워크 오류 또는 상위 블록에서 던진 에러 처리
-        console.error("API Fetch Error:", error);
-        
-        // 이미 상세한 에러 메시지가 포함되어 있으므로, 그것을 그대로 던지거나 기본 메시지를 사용합니다.
-        throw new Error(error.message || "Failed to communicate with the API server.");
+    if (!user) {
+        // 사용자 객체가 없으면 인증 오류 발생
+        console.error("Authentication Error: Current user is null. Please log in.");
+        // 로그인 페이지로 리디렉션하거나 사용자에게 알리는 것이 좋습니다.
+        throw new Error("Authentication Error (401): Please log in again.");
     }
+    
+    // 2. ✅ 수정 및 필수 로직: 유효한 ID 토큰을 비동기적으로 획득
+    const idToken = await user.getIdToken(); 
+    
+    // 3. 서버 API 호출
+    const response = await fetch('/api/sermon-generator', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            // 🚨 획득한 토큰을 Authorization 헤더에 Bearer와 함께 추가합니다.
+            'Authorization': `Bearer ${idToken}` 
+        },
+        body: JSON.stringify({ type, ...payload })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+        // 서버에서 401, 403 (구독 제한 초과), 500 (API 키 오류) 등의 오류가 발생한 경우 처리
+        console.error(`API Call Failed (${response.status}):`, result.error);
+        throw new Error(result.error || `Server returned status ${response.status}`);
+    }
+    
+    return result;
 }

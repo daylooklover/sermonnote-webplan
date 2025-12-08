@@ -1,71 +1,164 @@
+// @/components/DraggableQuickMemoIcon.js
+
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { MicIcon } from './IconComponents';
+import { QuickMemoIcon } from '@/components/IconComponents.js';
 
-const DraggableQuickMemoIcon = ({ onClick }) => {
+// ⚠️ 참고: window 객체에 직접 접근하므로 "use client"가 필수입니다.
+const DraggableQuickMemoIcon = ({ onClick, initialX = 50, initialY = 50, ...props }) => {
+    
+    // ⭐️ [FIXED] 버튼의 초기 위치를 props로 전달받은 값으로 설정
+    // 이 값은 서버에서도 동일하게 계산되므로 Hydration Error를 방지합니다.
+    const [position, setPosition] = useState({ x: initialX, y: initialY }); 
     const [isDragging, setIsDragging] = useState(false);
-    const [position, setPosition] = useState({ x: 0, y: 0 });
-    const dragStartRef = useRef({ x: 0, y: 0 });
-    const iconRef = useRef(null);
+    const dragOffset = useRef({ x: 0, y: 0 });
+    const elementRef = useRef(null);
+    const clickTimer = useRef(null);
+    const hasMoved = useRef(false);
 
-    const handleMouseDown = (e) => {
+
+    // ---------------------------------------------
+    // ⭐️ [FIXED] Hydration Error 해결: 클라이언트 마운트 시에만 초기 위치 재설정
+    // ---------------------------------------------
+    useEffect(() => {
+        // 서버 측에서는 실행되지 않고, 클라이언트 측에서 마운트된 후에만 실행됩니다.
+        if (typeof window !== 'undefined') {
+            const element = elementRef.current;
+            if (!element) return;
+            
+            // 초기 위치를 화면 우측 하단 근처로 설정
+            const defaultX = window.innerWidth - element.offsetWidth - 20; 
+            const defaultY = window.innerHeight - element.offsetHeight - 150; // 코파일럿 버튼과 겹치지 않도록 조정
+
+            setPosition({
+                x: initialX !== 50 ? initialX : defaultX, // props가 50이면 계산된 기본값 사용
+                y: initialY !== 50 ? initialY : defaultY
+            });
+        }
+    }, []); 
+    
+    // ---------------------------------------------
+    // 1. 마우스 누름 이벤트 (드래그 시작)
+    // ---------------------------------------------
+    const handleMouseDown = useCallback((e) => {
+        if (e.button !== 0) return; 
+
+        e.preventDefault();
         setIsDragging(true);
-        dragStartRef.current = {
-            x: e.clientX - position.x,
-            y: e.clientY - position.y
+        hasMoved.current = false;
+        
+        // 클릭 후 200ms 동안 움직임이 없으면 순수 클릭으로 간주
+        clickTimer.current = setTimeout(() => {
+            if (!hasMoved.current) {
+                // 클릭 로직은 마우스 업 시점에 처리
+            }
+        }, 200);
+
+
+        const element = elementRef.current;
+        if (!element) return;
+        
+        const rect = element.getBoundingClientRect();
+        dragOffset.current = {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
         };
-    };
-
-    // 🚨 [FIX]: useCallback을 사용하여 함수를 안정화합니다.
-    // 이 함수는 'isDragging'에만 의존하며, 'position'과 'dragStartRef'는 내부에서 사용됩니다.
-    const handleMouseMove = useCallback((e) => {
-        if (!isDragging) return;
-        const newX = e.clientX - dragStartRef.current.x;
-        const newY = e.clientY - dragStartRef.current.y;
-        setPosition({ x: newX, y: newY });
-    }, [isDragging, position.x, position.y]); // position 상태에 명시적으로 의존성을 추가하여 최신 값을 사용하도록 합니다.
-
-    // 🚨 [FIX]: useCallback을 사용하여 함수를 안정화합니다.
-    const handleMouseUp = useCallback(() => {
-        setIsDragging(false);
     }, []);
 
-    // 마우스 이벤트 리스너 등록 및 해제
-    // 🚨 [FIX]: isDragging 외에 handleMouseMove와 handleMouseUp을 의존성에 추가하여 경고를 해결합니다.
-    useEffect(() => {
-        if (isDragging) {
-            window.addEventListener('mousemove', handleMouseMove);
-            window.addEventListener('mouseup', handleMouseUp);
-        } else {
-            window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mouseup', handleMouseUp);
+    // ---------------------------------------------
+    // 2. 마우스 이동 이벤트 (드래그 중)
+    // ---------------------------------------------
+    const handleMouseMove = useCallback((e) => {
+        if (!isDragging) return;
+        
+        e.preventDefault();
+        
+        // 움직임 임계값 설정
+        if (Math.abs(e.movementX) > 5 || Math.abs(e.movementY) > 5) {
+            hasMoved.current = true;
+            if (clickTimer.current) {
+                clearTimeout(clickTimer.current);
+            }
         }
 
-        // 컴포넌트 언마운트 시 리스너 제거
-        return () => {
-            window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mouseup', handleMouseUp);
-        };
-    }, [isDragging, handleMouseMove, handleMouseUp]); // ⭐️ handleMouseMove, handleMouseUp 추가
+        const newX = e.clientX - dragOffset.current.x;
+        const newY = e.clientY - dragOffset.current.y;
 
+        // 경계 제한 (화면을 벗어나지 않도록)
+        const element = elementRef.current;
+        const maxX = window.innerWidth - (element ? element.offsetWidth : 50);
+        const maxY = window.innerHeight - (element ? element.offsetHeight : 50);
+
+        setPosition({
+            x: Math.min(maxX, Math.max(0, newX)),
+            y: Math.min(maxY, Math.max(0, newY))
+        });
+    }, [isDragging]);
+
+    // ---------------------------------------------
+    // 3. 마우스 놓음 이벤트 (드래그 종료 또는 클릭)
+    // ---------------------------------------------
+    const handleMouseUp = useCallback((e) => {
+        if (isDragging) {
+            setIsDragging(false);
+            
+            if (clickTimer.current) {
+                clearTimeout(clickTimer.current);
+                clickTimer.current = null;
+            }
+
+            // 드래그가 아니었다면 (거의 움직이지 않았다면) 클릭 이벤트 실행
+            if (!hasMoved.current && onClick) {
+                onClick(e);
+            }
+        }
+        
+    }, [isDragging, onClick]);
+
+    // ---------------------------------------------
+    // 전역 이벤트 리스너 설정 (클릭/드래그 상태 유지)
+    // ---------------------------------------------
+    useEffect(() => {
+        if (isDragging) {
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+        } else {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        }
+
+        return () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [isDragging, handleMouseMove, handleMouseUp]);
+
+
+    // ---------------------------------------------
+    // 렌더링
+    // ---------------------------------------------
     return (
         <button
-            ref={iconRef}
-            onClick={onClick}
+            ref={elementRef}
             onMouseDown={handleMouseDown}
-            style={{
-                position: 'fixed',
-                bottom: `2rem`,
-                right: `2rem`,
+            // 드래그 중일 때 커서 모양 변경
+            style={{ 
                 transform: `translate(${position.x}px, ${position.y}px)`,
                 cursor: isDragging ? 'grabbing' : 'grab',
-                transition: isDragging ? 'none' : 'transform 0.3s ease-in-out',
-                zIndex: 50,
+                // position: fixed 대신 absolute를 사용했으므로, 
+                // top/left를 0으로 설정하고 transform으로만 위치를 제어합니다.
+                position: 'fixed', // 뷰포트 기준으로 움직이게 하려면 fixed가 적절합니다.
+                top: 0, 
+                left: 0 
             }}
-            className="p-4 rounded-full bg-blue-500 text-white shadow-lg hover:bg-blue-600 transition-colors"
+            // absolute 대신 fixed를 사용해야 뷰포트 기준 이동이 가능합니다.
+            className={`p-3 bg-yellow-500 hover:bg-yellow-600 text-white rounded-full shadow-2xl transition z-60 ${props.className}`} 
+            
+            // props로 전달된 title 등 다른 속성 적용
+            {...props}
         >
-            <MicIcon className="w-6 h-6" />
+            <QuickMemoIcon className="w-5 h-5" />
         </button>
     );
 };

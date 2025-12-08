@@ -1,0 +1,136 @@
+[debug] [2025-12-06T05:05:10.873Z] ----------------------------------------------------------------------
+[debug] [2025-12-06T05:05:10.877Z] Command:       C:\Users\dbkim\Downloads\nodejs\node.exe C:\Users\dbkim\Downloads\nodejs\node_modules\firebase-tools\lib\bin\firebase.js deploy
+[debug] [2025-12-06T05:05:10.878Z] CLI Version:   14.11.1
+[debug] [2025-12-06T05:05:10.878Z] Platform:      win32
+[debug] [2025-12-06T05:05:10.879Z] Node Version:  v20.19.3
+[debug] [2025-12-06T05:05:10.879Z] Time:          Sat Dec 06 2025 14:05:10 GMT+0900 (대한민국 표준시)
+[debug] [2025-12-06T05:05:10.879Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-12-06T05:05:10.883Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[debug] [2025-12-06T05:05:11.671Z] Object "/functions" in "firebase.json" has unknown property: {"additionalProperty":"region"}
+[debug] [2025-12-06T05:05:11.672Z] Field "/functions" in "firebase.json" is possibly invalid: must be array
+[debug] [2025-12-06T05:05:11.673Z] Field "/functions" in "firebase.json" is possibly invalid: must match a schema in anyOf
+[debug] [2025-12-06T05:05:11.691Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-12-06T05:05:11.692Z] > authorizing via signed-in user (kihwangi4@gmail.com)
+[debug] [2025-12-06T05:05:11.693Z] [iam] checking project sermonnote-new-gen-53302 for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2025-12-06T05:05:11.694Z] Checked if tokens are valid: false, expires at: 1763803410411
+[debug] [2025-12-06T05:05:11.695Z] Checked if tokens are valid: false, expires at: 1763803410411
+[debug] [2025-12-06T05:05:11.697Z] > refreshing access token with scopes: []
+[debug] [2025-12-06T05:05:11.703Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2025-12-06T05:05:11.703Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-12-06T05:05:11.960Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2025-12-06T05:05:11.960Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-12-06T05:05:11.970Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/sermonnote-new-gen-53302:testIamPermissions [none]
+[debug] [2025-12-06T05:05:11.971Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/sermonnote-new-gen-53302:testIamPermissions x-goog-quota-user=projects/sermonnote-new-gen-53302
+[debug] [2025-12-06T05:05:11.971Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/sermonnote-new-gen-53302:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2025-12-06T05:05:12.095Z] <<< [apiv2][status] GET https://firebase-public.firebaseio.com/cli.json 200
+[debug] [2025-12-06T05:05:12.095Z] <<< [apiv2][body] GET https://firebase-public.firebaseio.com/cli.json {"cloudBuildErrorAfter":1594252800000,"cloudBuildWarnAfter":1590019200000,"defaultNode10After":1594252800000,"minVersion":"3.0.5","node8DeploysDisabledAfter":1613390400000,"node8RuntimeDisabledAfter":1615809600000,"node8WarnAfter":1600128000000}
+[debug] [2025-12-06T05:05:12.249Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/sermonnote-new-gen-53302:testIamPermissions 200
+[debug] [2025-12-06T05:05:12.249Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/sermonnote-new-gen-53302:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2025-12-06T05:05:12.249Z] Checked if tokens are valid: true, expires at: 1765001110960
+[debug] [2025-12-06T05:05:12.250Z] Checked if tokens are valid: true, expires at: 1765001110960
+[debug] [2025-12-06T05:05:12.250Z] >>> [apiv2][query] POST https://iam.googleapis.com/v1/projects/sermonnote-new-gen-53302/serviceAccounts/sermonnote-new-gen-53302@appspot.gserviceaccount.com:testIamPermissions [none]
+[debug] [2025-12-06T05:05:12.250Z] >>> [apiv2][body] POST https://iam.googleapis.com/v1/projects/sermonnote-new-gen-53302/serviceAccounts/sermonnote-new-gen-53302@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[debug] [2025-12-06T05:05:13.349Z] <<< [apiv2][status] POST https://iam.googleapis.com/v1/projects/sermonnote-new-gen-53302/serviceAccounts/sermonnote-new-gen-53302@appspot.gserviceaccount.com:testIamPermissions 200
+[debug] [2025-12-06T05:05:13.349Z] <<< [apiv2][body] POST https://iam.googleapis.com/v1/projects/sermonnote-new-gen-53302/serviceAccounts/sermonnote-new-gen-53302@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[debug] [2025-12-06T05:05:13.352Z] Checked if tokens are valid: true, expires at: 1765001110960
+[debug] [2025-12-06T05:05:13.352Z] Checked if tokens are valid: true, expires at: 1765001110960
+[debug] [2025-12-06T05:05:13.353Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/sermonnote-new-gen-53302 [none]
+[debug] [2025-12-06T05:05:13.919Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/sermonnote-new-gen-53302 200
+[debug] [2025-12-06T05:05:13.919Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/sermonnote-new-gen-53302 {"projectId":"sermonnote-new-gen-53302","projectNumber":"319320263734","displayName":"sermonnote-new-gen","name":"projects/sermonnote-new-gen-53302","resources":{"hostingSite":"sermonnote-new-gen-53302"},"state":"ACTIVE","etag":"1_0e29a781-97f4-46b0-b511-1f975c7316c0"}
+[debug] [2025-12-06T05:05:18.173Z] Checked if tokens are valid: true, expires at: 1765001110960
+[debug] [2025-12-06T05:05:18.174Z] Checked if tokens are valid: true, expires at: 1765001110960
+[debug] [2025-12-06T05:05:18.174Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/sermonnote-new-gen-53302/sites pageToken=&pageSize=10
+[debug] [2025-12-06T05:05:19.017Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/sermonnote-new-gen-53302/sites 200
+[debug] [2025-12-06T05:05:19.017Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/sermonnote-new-gen-53302/sites {"sites":[{"name":"projects/sermonnote-new-gen-53302/sites/sermonnote-new-gen-53302","defaultUrl":"https://sermonnote-new-gen-53302.web.app","type":"DEFAULT_SITE"}]}
+[debug] [2025-12-06T05:05:19.018Z] Checked if tokens are valid: true, expires at: 1765001110960
+[debug] [2025-12-06T05:05:19.018Z] Checked if tokens are valid: true, expires at: 1765001110960
+[debug] [2025-12-06T05:05:19.018Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/sermonnote-new-gen-53302/sites 
+[debug] [2025-12-06T05:05:19.466Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/sermonnote-new-gen-53302/sites 200
+[debug] [2025-12-06T05:05:19.466Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/sermonnote-new-gen-53302/sites {"sites":[{"name":"projects/sermonnote-new-gen-53302/sites/sermonnote-new-gen-53302","defaultUrl":"https://sermonnote-new-gen-53302.web.app","type":"DEFAULT_SITE"}]}
+[debug] [2025-12-06T05:05:19.467Z] Checked if tokens are valid: true, expires at: 1765001110960
+[debug] [2025-12-06T05:05:19.467Z] Checked if tokens are valid: true, expires at: 1765001110960
+[debug] [2025-12-06T05:05:19.467Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/sermonnote-new-gen-53302/webApps/-/config [none]
+[debug] [2025-12-06T05:05:20.066Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/sermonnote-new-gen-53302/webApps/-/config 200
+[debug] [2025-12-06T05:05:20.066Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/sermonnote-new-gen-53302/webApps/-/config {"projectId":"sermonnote-new-gen-53302","storageBucket":"sermonnote-new-gen-53302.firebasestorage.app","apiKey":"AIzaSyABMZ-9NYa2ilLStx8hRqpDiFjU1lpouWI","authDomain":"sermonnote-new-gen-53302.firebaseapp.com","messagingSenderId":"319320263734","projectNumber":"319320263734","version":"2"}
+[info] 
+   Thank you for trying our early preview of Next.js support on Firebase Hosting.
+   During the preview, support is best-effort and breaking changes can be expected. Proceed with caution.
+   The integration is known to work with Next.js version 12 - 15.0. You may encounter errors.
+
+   Documentation: https://firebase.google.com/docs/hosting/frameworks/nextjs
+   File a bug: https://github.com/firebase/firebase-tools/issues/new?template=bug_report.md
+   Submit a feature request: https://github.com/firebase/firebase-tools/issues/new?template=feature_request.md
+
+   We'd love to learn from you. Express your interest in helping us shape the future of Firebase Hosting: https://goo.gle/41enW5X
+
+[debug] [2025-12-06T05:05:29.579Z] Checked if tokens are valid: true, expires at: 1765001110960
+[debug] [2025-12-06T05:05:29.582Z] Checked if tokens are valid: true, expires at: 1765001110960
+[debug] [2025-12-06T05:05:29.583Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/sermonnote-new-gen-53302/sites/sermonnote-new-gen-53302 [none]
+[debug] [2025-12-06T05:05:30.376Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/sermonnote-new-gen-53302/sites/sermonnote-new-gen-53302 200
+[debug] [2025-12-06T05:05:30.376Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/sermonnote-new-gen-53302/sites/sermonnote-new-gen-53302 {"name":"projects/sermonnote-new-gen-53302/sites/sermonnote-new-gen-53302","defaultUrl":"https://sermonnote-new-gen-53302.web.app","type":"DEFAULT_SITE"}
+[info]    ▲ Next.js 16.0.7 (Turbopack)
+
+[info]    - Environments: .env.local
+
+
+[info]    Creating an optimized production build ...
+
+[info] Turbopack build encountered 1 warnings:
+./app/api/gemini/route.js:5:14
+Next.js can't recognize the exported `config` field in route. Page config in `config` is deprecated and ignored, use individual exports instead.
+  3 |
+  4 | // 🚨 [FIX]: 서버 API의 최대 실행 시간을 60초로 설정합니다 (Timeout 방지)
+> 5 | export const config = {
+    |              ^^^^^^
+  6 |     runtime: 'nodejs', // Vercel 또는 Next.js 환경에 맞게 nodejs 또는 edge로 설정
+  7 |     maxDuration: 60, // 최대 실행 시간을 60초로 늘립니다.
+  8 | };
+
+The exported configuration object in a source file needs to have a very specific format from which some properties can be statically parsed at compiled-time.
+
+https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config
+
+
+
+[info] 
+
+[info] > Build error occurred
+
+[info] Error: Turbopack build failed with 2 errors:
+./app/api/bible-assistant/route.js:107:13
+Ecmascript file had an error
+  105 |         if (errorMessage.includes('401') || errorMessage.includes('invalid') || errorMessage.includes('unregistered') || errorMessage.includes('API Key')) {
+  106 |             status = 401;
+> 107 |             errorMessage = `API Key Error: Please ensure your environment has a valid Gemini API Key. Details: ${errorMessage}`;
+      |             ^^^^^^^^^^^^
+  108 |         }
+  109 |         
+  110 |         return new NextResponse(
+
+cannot reassign to a variable declared with `const`
+
+
+./app/api/paddle-webhook/route.js:6:1
+Module not found: Can't resolve '@/lib/firebaseAdmin'
+  4 |  */
+  5 | import { NextResponse } from 'next/server';
+> 6 | import { db, admin } from '@/lib/firebaseAdmin'; // 🚨 [FIX] Admin SDK 인스턴스 임포트
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  7 | import * as crypto from 'crypto';
+  8 |
+  9 | // 🚨 [주의] 이 값들은 실제 Paddle 설정 값으로 대체되어야 합니다.
+
+Import map: aliased to relative './src/lib/firebaseAdmin' inside of [project]/
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+    at <unknown> (./app/api/bible-assistant/route.js:107:13)
+    at <unknown> (./app/api/paddle-webhook/route.js:6:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+
+[debug] [2025-12-06T05:05:45.634Z] Error: ENOENT: no such file or directory, open 'C:\Users\dbkim\sermonnote-live\sermonnote-project\.next\server\middleware-manifest.json'
+[error] 
+[error] Error: An unexpected error has occurred.

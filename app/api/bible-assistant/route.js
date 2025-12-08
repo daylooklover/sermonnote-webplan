@@ -98,7 +98,7 @@ export async function POST(req) {
     } catch (error) {
         console.error("Bible Assistant API Error:", error);
         
-        const errorMessage = error.message || 'Internal Server Error';
+        let errorMessage = error.message || 'Internal Server Error'; // `const`를 `let`으로 변경
         let status = 500;
 
         // Check if the error contains API key or security rejection messages

@@ -1,20 +1,21 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { getAuth } from 'firebase/auth'; 
+import { Send, LogOut, Trash2, ArrowLeft, Loader2, Key } from 'lucide-react'; // 아이콘 라이브러리 추가 (가정)
 
 // DUMMY ID 생성 함수 (인라인 정의)
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
 // 로컬 저장소 키 정의
 const STORAGE_KEY = 'sermonAssistantChatHistory'; 
-
-// 🚨 FIX: 삭제된 '/api/assistant-chat' 대신 새로운 API 경로를 사용하도록 수정합니다.
-// '설교-generator'의 경로를 '/api/sermon-generator'로 가정합니다.
 const CHAT_ENDPOINT = '/api/sermon-generator'; 
-const API_BASE_URL = ''; // 상대 경로 사용
+const API_BASE_URL = ''; 
 const GEMINI_STUDIO_URL = "https://aistudio.google.com/app/apikey";
 
-// 💡 Custom Modal Hook/Logic (커스텀 모달 상태 관리)
+// =========================================================
+// 💡 Custom Modal Hooks & Component (변동 없음)
+// =========================================================
 const useModal = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalAction, setModalAction] = useState(null);
@@ -29,7 +30,6 @@ const useModal = () => {
         setModalAction(null);
     };
     
-    // 모달을 통한 실제 실행 함수
     const confirmAction = () => {
         if (modalAction) {
             modalAction();
@@ -41,7 +41,6 @@ const useModal = () => {
 };
 
 
-// 💡 Custom Modal Component (SermonAssistantComponent 바깥으로 분리)
 const CustomConfirmModal = ({ isModalOpen, closeModal, confirmAction, t, lang }) => {
     if (!isModalOpen) return null;
     
@@ -74,9 +73,13 @@ const CustomConfirmModal = ({ isModalOpen, closeModal, confirmAction, t, lang })
 };
 
 
-// 💡 MessageComponent (마크다운 처리 포함)
+// =========================================================
+// 💡 MessageComponent (UI 개선)
+// =========================================================
 const MessageComponent = ({ message, lang }) => { 
     const isUser = message.role === 'user';
+    const isError = message.isError;
+    const isAuthError = message.isAuthError;
     const content = message.content; 
     
     const renderContent = (text) => {
@@ -84,62 +87,65 @@ const MessageComponent = ({ message, lang }) => {
         
         let processedText = text;
         
-        // 1. 코드 블록 처리
+        // 코드 블록은 마크다운 처리를 건너뛰고 pre로 직접 렌더링합니다.
         if (processedText.includes('```')) {
             return (
-                <pre className="whitespace-pre-wrap font-mono p-3 my-2 bg-gray-600 dark:bg-gray-900 rounded-lg overflow-x-auto text-sm text-white">
+                <pre className="whitespace-pre-wrap font-mono p-3 my-2 bg-gray-800 dark:bg-gray-900 rounded-lg overflow-x-auto text-sm text-white border border-gray-700">
                     {processedText}
                 </pre>
             );
         }
 
-        // 2. 제목 (H3) 처리
-        processedText = processedText.replace(
-            /###\s(.*?)\n/g, 
-            '<h3 class="text-lg font-bold mt-4 mb-2 text-indigo-500">$1</h3>'
-        );
-        
-        // 3. 목록 (-) 처리
-        processedText = processedText.replace(
-            /^\s*-\s(.*?)$/gm, 
-            '<li class="mb-1 ml-2 pl-2 list-disc list-inside">$1</li>'
-        );
-        // 목록 ul 감싸기
+        // 마크다운 요소 처리
+        processedText = processedText
+            .replace(/###\s(.*?)\n/g, '<h3 class="text-lg font-bold mt-4 mb-2 text-indigo-400 dark:text-indigo-300">$1</h3>')
+            .replace(/^\s*-\s(.*?)$/gm, '<li class="mb-1 ml-2 pl-2 list-disc list-inside">$1</li>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\n/g, '<br/>')
+            .replace(/(<br\/>\s*){3,}/g, '<br/><br/>');
+
         if (processedText.includes('<li') && !processedText.startsWith('<ul')) {
             processedText = `<ul>${processedText}</ul>`;
         }
 
-        // 4. 볼드 처리: **...**
-        processedText = processedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        
-        // 5. 줄 바꿈 처리
-        processedText = processedText.replace(/\n/g, '<br/>');
-
-        // 6. 연속된 <br/>을 하나로 줄임
-        processedText = processedText.replace(/(<br\/>\s*){3,}/g, '<br/><br/>');
-
-        // 텍스트만 남아 있을 경우
         return <div dangerouslySetInnerHTML={{ __html: processedText }} />;
     };
     
+    const messageClasses = isError 
+        ? 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300 border border-red-300 dark:border-red-700'
+        : (isUser 
+            ? 'bg-indigo-600 text-white' 
+            : 'bg-white text-gray-800 dark:bg-gray-700 dark:text-gray-100 shadow-md border border-gray-200 dark:border-gray-600');
+            
     return (
-        <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
-            <div className={`max-w-[80%] p-4 rounded-xl shadow-lg transition-all duration-300 ${
-                isUser 
-                    ? 'bg-indigo-600 text-white' 
-                    : 'bg-white text-gray-800 dark:bg-gray-700 dark:text-gray-100'
-            }`}>
+        <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-6`}>
+            {/* 봇 아이콘 (봇 메시지일 때만) */}
+            {!isUser && (
+                <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center mr-3 text-white shadow-md flex-shrink-0">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 15h2m10 0h2M3 8v11a2 2 0 002 2h14a2 2 0 002-2V8M5 8h14a2 2 0 00-2-2H7a2 2 0 00-2 2z"></path></svg>
+                </div>
+            )}
+
+            <div className={`max-w-[75%] p-4 rounded-xl transition-all duration-300 ${messageClasses} ${isUser ? 'rounded-br-none' : 'rounded-bl-none'}`}>
                 <div className="prose dark:prose-invert max-w-none text-sm leading-relaxed">
                     {renderContent(content)}
                 </div>
             </div>
-            {/* 메시지 내용이 'errorApiKeyOrServer'일 때 발생하는 불필요한 공백을 줄이기 위해 빈 div 제거 */}
-            {!content.includes("errorApiKeyOrServer") && <div className="w-4 h-4" />}
+            
+             {/* 유저 아이콘 (유저 메시지일 때만) */}
+             {isUser && (
+                <div className="w-8 h-8 rounded-full bg-gray-500 flex items-center justify-center ml-3 text-white shadow-md flex-shrink-0">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                </div>
+            )}
         </div>
     );
 };
 
-// 💡 SermonAssistantComponent 정의
+
+// =========================================================
+// 💡 SermonAssistantComponent 정의 (주요 로직은 유지, UI 개선)
+// =========================================================
 const SermonAssistantComponent = ({ 
     user, 
     lang, 
@@ -149,10 +155,12 @@ const SermonAssistantComponent = ({
     sermonCount, 
     setSermonCount, 
     onLimitReached,
-    userSubscription
+    userSubscription,
+    // 🚨 [추가] 로그아웃 기능을 위한 prop
+    handleLogout 
 }) => {
     
-    // 🚨 [수정 1]: messages 상태를 localStorage에서 로드
+    // ... (Hooks 및 상태 정의는 원본과 동일)
     const [messages, setMessages] = useState(() => {
         if (typeof window !== 'undefined') {
             const savedHistory = localStorage.getItem(STORAGE_KEY);
@@ -170,49 +178,44 @@ const SermonAssistantComponent = ({
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef(null);
     
-    // 💡 Custom Modal Hooks 사용
     const { isModalOpen, openModal, closeModal, confirmAction } = useModal();
 
-    // 🚨 [추가 1]: messages 상태가 변경될 때마다 localStorage에 저장
     useEffect(() => {
         if (typeof window !== 'undefined') {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
         }
     }, [messages]);
 
-    // 🚨 [수정 2]: 초기 메시지 설정 (localStorage에 기록이 없을 때만)
     useEffect(() => {
         if (messages.length === 0) { 
             const initialMessage = { 
                 id: 'initial', 
-                content: t('sermonAssistantInitialDescription', lang), 
+                content: t('sermonAssistantInitialDescription', lang) || "안녕하세요! 저는 성경 전문 비서입니다. 성경 구절 검색, 주석 요청 또는 다른 질문이 있으시면 언제든지 말씀해주세요. 어떻게 도와드릴까요?",
                 role: 'assistant' 
             };
             setMessages([initialMessage]);
         }
-    }, [lang, t]); // messages가 비어있을 때만 실행
+    }, [lang, t]); 
 
-    // 자동 스크롤 로직
-    const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
+    const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }); };
     
-    // 🚨 FIX 2: 메시지 목록이 업데이트될 때만 스크롤을 실행
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
     
-    // ... (isScriptureRequest, getFullPath, handleAiResponse 로직은 메시지 상태 업데이트 로직과 충돌하지 않도록 그대로 유지)
-    // 🚨 성경 구절 형식 판단 (강해설교 기능 활성화)
     const isScriptureRequest = (text) => {
         const scriptureRegex = /(\d*\s*\p{L}+\s*\d+[:\s]\d+)|(\p{L}+\s*\d+)/u;
         return scriptureRegex.test(text);
     };
 
-    // API 호출 경로 생성 
     const getFullPath = () => {
         return `${API_BASE_URL}${CHAT_ENDPOINT}`; 
     }
     
-    // API 호출 및 응답 처리
+    
+    // =========================================================================
+    // 🛑 [FIX] handleAiResponse: ID Token 획득 로직 포함 및 개선된 에러 처리
+    // =========================================================================
     const handleAiResponse = useCallback(async (userMessage) => {
         if (isLoading || !user) return;
         
@@ -221,28 +224,40 @@ const SermonAssistantComponent = ({
         const fullUrl = getFullPath(); 
         const requestType = isScriptureRequest(userMessage) ? 'scripture' : 'general';
 
-        // 1. 유저 메시지 및 로딩 메시지 설정
         const newUserMessage = { id: generateId(), content: userMessage, role: 'user' };
         const loadingMessageId = generateId();
         
-        // 'initial' 및 'error' 메시지는 히스토리에서 제외하고, 새 메시지를 추가
         const historyForAPI = messages.filter(msg => msg.id !== 'initial' && msg.id !== 'error' && msg.role !== 'error' && !msg.isError);
         
         setMessages(prev => {
-            // 이전 오류 메시지들을 제거하고 새로운 메시지들을 추가합니다.
-            const cleanedHistory = prev.filter(msg => msg.id !== 'initial' && !msg.isError);
+            const cleanedHistory = prev.filter(msg => msg.id !== 'initial' && !msg.isError && msg.id !== loadingMessageId);
             return [
                 ...cleanedHistory, 
                 newUserMessage, 
-                { id: loadingMessageId, content: t('aiIsThinking', lang), role: 'assistant' }
+                { id: loadingMessageId, content: t('aiIsThinking', lang) || "AI 비서가 응답을 준비하고 있습니다...", role: 'assistant' }
             ];
         });
         
-        // 2. API 호출
+        let idToken;
+        try {
+            const auth = getAuth();
+            idToken = await user.getIdToken(); 
+        } catch (tokenError) {
+            console.error("❌ Failed to get ID Token:", tokenError);
+            const errorMsg = t('loginToUseFeature', lang) || "인증 토큰 획득에 실패했습니다. 다시 로그인해주세요.";
+            setMessages(prev => prev.filter(msg => msg.id !== loadingMessageId));
+            setMessages(prev => [...prev, { id: generateId(), content: errorMsg, role: 'assistant', isAuthError: true, isError: true }]);
+            setIsLoading(false);
+            return; 
+        }
+
         try {
             const response = await fetch(fullUrl, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${idToken}`, 
+                },
                 body: JSON.stringify({ 
                     prompt: userMessage, 
                     lang: lang, 
@@ -251,11 +266,9 @@ const SermonAssistantComponent = ({
                     userId: user.uid,
                     userSubscription: userSubscription,
                     sermonCount: sermonCount 
-                    // memo_text 필드는 채팅에서는 보내지 않습니다.
                 }), 
             });
 
-            // 3. 응답 에러 처리 (403/제한 도달 처리 포함)
             if (!response.ok) {
                 let errorDetails = t('errorProcessingRequest', lang) || `요청 처리 중 오류 발생 (Status: ${response.status})`;
                 let isAuthError = false;
@@ -264,42 +277,27 @@ const SermonAssistantComponent = ({
                     const contentType = response.headers.get("content-type");
                     if (contentType && contentType.includes("application/json")) {
                         const errorJson = await response.json();
-                        errorDetails = errorJson.response || errorJson.message || JSON.stringify(errorJson);
+                        errorDetails = errorJson.error || errorJson.message || JSON.stringify(errorJson);
                         
-                        if (response.status === 403 || (errorJson.message && errorJson.message.includes('Limit Reached'))) {
+                        if (response.status === 403 || errorDetails.includes('Limit Exceeded')) {
                             onLimitReached(); 
-                            setMessages(prev => prev.filter(msg => msg.id !== loadingMessageId));
-                            return; 
+                            errorDetails = t('limitReachedMessage', lang) || "사용 제한에 도달했습니다.";
                         }
                         
-                        // 401, 403, 404, 500 오류 또는 메시지에 'API 키' 포함 시 인증 오류로 간주
-                        if (response.status === 401 || response.status === 403 || response.status === 404 || response.status === 500 || errorDetails.includes('API 키') || errorDetails.includes('API Key') || response.status === 500) {
+                        if (response.status === 401 || errorDetails.includes('Authentication Error')) {
+                             errorDetails = t('errorApiKeyOrServer', lang) || "인증 토큰이 유효하지 않습니다. 다시 로그인해주세요.";
+                             isAuthError = true;
+                        } else if (response.status === 500) {
+                            errorDetails = t('errorApiKeyOrServer', lang) || "서버 내부 오류가 발생했습니다. 키를 확인해 주세요.";
                             isAuthError = true;
-                            // 404 오류는 API 라우트 경로 문제이므로, 개발자에게 확인하도록 메시지를 변경했습니다.
-                            errorDetails = response.status === 404 
-                                ? t('errorProcessingRequest', lang) + ` (오류: API 경로를 찾을 수 없음 - ${fullUrl})`
-                                : t('errorApiKeyOrServer', lang) || "API 키 문제 또는 서버 오류가 발생했습니다. 키를 확인해 주세요.";
-                        }
-                        
-                        // 400 Bad Request (Missing prompt) 오류 발생 시 로직
-                        if (response.status === 400 && errorDetails.includes('Missing prompt')) {
-                            // 입력이 비어있었다는 의미이므로, 오류 메시지를 사용자가 이해하기 쉽게 변경합니다.
-                            errorDetails = t('input_empty_error', lang) || "입력 내용이 비어있습니다. 질문을 입력해주세요.";
-                            isAuthError = false; // API 키 오류가 아님
                         }
 
-                    } else {
-                        const textError = await response.text(); 
-                        errorDetails = (t('errorApiKeyOrServer', lang) || "API 키 문제 또는 서버 오류가 발생했습니다. 키를 확인해 주세요.") + ` (Status: ${response.status})`;
-                        isAuthError = true; 
-                        console.error("Non-JSON API Response:", textError);
                     }
                 } catch (e) {
-                    errorDetails = (t('errorApiKeyOrServer', lang) || "API 키 문제 또는 서버 오류가 발생했습니다. 키를 확인해 주세요.") + ` (Status: ${response.status})`;
+                    errorDetails = (t('errorApiKeyOrServer', lang) || "네트워크 오류 또는 서버 오류가 발생했습니다.") + ` (Status: ${response.status})`;
                     isAuthError = true; 
                 }
                 
-                // 로딩 메시지 제거 후 오류 메시지 추가
                 setMessages(prev => prev.filter(msg => msg.id !== loadingMessageId));
                 setMessages(prev => [...prev, { id: generateId(), content: errorDetails, role: 'assistant', isAuthError: isAuthError, isError: true }]);
                 return;
@@ -307,7 +305,6 @@ const SermonAssistantComponent = ({
 
             const data = await response.json();
             
-            // 4. 로딩 메시지 제거 후 실제 응답 추가
             setMessages(prev => prev.filter(msg => msg.id !== loadingMessageId));
             
             const aiResponseContent = data.response || t('aiAssistantDefaultResponse', lang); 
@@ -318,16 +315,13 @@ const SermonAssistantComponent = ({
                 role: 'assistant' 
             }]);
             
-            // 5. 성공 시: sermonCount 상태를 1 증가시켜 UI에 반영
             if (data.message === 'Success' && setSermonCount) {
                 setSermonCount(prev => prev + 1);
             }
 
         } catch (error) {
             console.error("AI Assistant API Catch Error:", error.message);
-            // 로딩 메시지 제거
             setMessages(prev => prev.filter(msg => msg.id !== loadingMessageId));
-            // 최종 네트워크/파싱 오류 메시지 추가 (API 키 에러로 처리)
             setMessages(prev => [...prev, { id: generateId(), content: t('errorApiKeyOrServer', lang) || "네트워크 오류 또는 API 키 문제가 발생했습니다.", role: 'assistant', isAuthError: true, isError: true }]);
         } finally {
             setIsLoading(false);
@@ -342,7 +336,6 @@ const SermonAssistantComponent = ({
         }
         const trimmedInput = currentInput.trim();
         
-        // 🚨 [FIX]: 빈 입력 방어 로직 재강화.
         if (trimmedInput === '') {
             console.warn("Input is empty, preventing API call.");
             return;
@@ -362,109 +355,133 @@ const SermonAssistantComponent = ({
         }
     }, [handleSendClick]); 
     
-    // 💡 새 함수: Gemini Studio로 이동
     const handleGoToGeminiStudio = () => {
         window.open(GEMINI_STUDIO_URL, '_blank');
     };
     
-    // 🚨 [NEW]: 대화 기록을 실제로 삭제하는 로직 (Modal Confirm 시 실행됨)
     const handleClearChat = useCallback(() => {
         setMessages([]);
         if (typeof window !== 'undefined') {
             localStorage.removeItem(STORAGE_KEY);
         }
-        // 삭제 성공 후 사용자에게 피드백 제공 (옵션)
-        // setErrorMessage(t('chatClearedSuccess', lang));
     }, []);
 
-    // 대화 내용 초기화 요청 (Custom Modal 호출)
     const handleClearChatRequest = () => {
-        // Modal을 호출하고, 확인 버튼 클릭 시 handleClearChat이 실행되도록 설정
         openModal(handleClearChat);
     }
 
     return (
-        <div className="flex flex-col h-full min-h-screen bg-gray-100 dark:bg-slate-900">
-            {/* Header and Back Button */}
-            <div className="p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm sticky top-0 z-10 flex justify-between items-center">
-                {/* ⬅️ 뒤로가기 버튼: 디자인 개선 */}
+        <div className="flex flex-col h-screen max-h-screen bg-gray-50 dark:bg-gray-900 font-sans antialiased">
+            
+            {/* ========================================================= */}
+            {/* ⬆️ Header Area (Sticky Top) */}
+            {/* ========================================================= */}
+            <div className="p-4 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 shadow-lg flex justify-between items-center flex-shrink-0">
+                
+                {/* 왼쪽: 뒤로가기 / 로고 */}
                 <button 
                     onClick={onGoBack} 
                     className="flex items-center text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
-                    <svg className="w-6 h-6 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-                    {t('goBack', lang)} 
+                    <ArrowLeft className="w-5 h-5 mr-1" />
+                    <span className="text-sm font-medium hidden sm:inline">{t('goBack', lang) || '뒤로가기'}</span>
                 </button>
-                {/* 대화 초기화 버튼: 디자인 개선 */}
-                <button 
-                    onClick={handleClearChatRequest} 
-                    className="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 dark:bg-red-900/20 rounded-full hover:bg-red-100 dark:hover:bg-red-900/40 transition"
-                >
-                    {t('clearChat', lang)}
-                </button>
+                
+                {/* 중앙: 제목 / 사용량 */}
+                <div className="text-center flex-grow">
+                    <h1 className="text-lg font-bold text-gray-900 dark:text-white hidden sm:inline">Sermon Assistant AI Chat</h1>
+                    <div className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                        AI Usage: {sermonCount || 0}/{userSubscription?.limit || 50}회
+                    </div>
+                </div>
+
+                {/* 오른쪽: 초기화 / 로그아웃 */}
+                <div className="flex items-center space-x-2">
+                    <button 
+                        onClick={handleClearChatRequest} 
+                        className="p-2 text-red-600 bg-red-50 dark:bg-red-900/20 rounded-full hover:bg-red-100 dark:hover:bg-red-900/40 transition tooltip"
+                        title={t('clearChat', lang) || '대화 초기화'}
+                    >
+                        <Trash2 className="w-5 h-5" />
+                    </button>
+                    {handleLogout && (
+                        <button 
+                            onClick={handleLogout} 
+                            className="p-2 text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition tooltip"
+                            title={t('logout', lang) || '로그아웃'}
+                        >
+                            <LogOut className="w-5 h-5" />
+                        </button>
+                    )}
+                </div>
             </div>
 
-            {/* Chat Area */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {messages
-                    .filter(message => message.content && message.content.trim() !== '') // 💡 메시지 내용이 비어있으면 렌더링하지 않음
-                    .map((message) => (
-                    <div key={message.id}>
-                        <MessageComponent message={message} lang={lang} />
-                        
-                        {/* 💡 오류 메시지 아래에 '키 확인' 버튼 노출 (API 키 오류로 추정될 때) */}
-                    {message.isError && message.isAuthError && ( // isError 플래그 사용
-                            <div className="flex justify-center mt-2">
-                                <button 
-                                    onClick={handleGoToGeminiStudio}
-                                    className="px-4 py-2 text-sm bg-yellow-500 text-gray-900 font-semibold rounded-lg hover:bg-yellow-400 transition shadow-md focus:outline-none focus:ring-4 focus:ring-yellow-500 focus:ring-opacity-50"
-                                >
-                                    Gemini API 키 확인 / 발급
-                                </button>
-                            </div>
-                        )}
-                        
-                        {/* 🚨 401 오류 발생 시 로그인 유도 메시지 추가 */}
-                        {message.content.includes("API 키 인증에 실패했습니다") && !user && (
-                            <div className="text-center mt-2 text-sm text-red-500">
-                                {t('loginToUseFeature', lang)} 또는 API 키를 확인하세요.
-                            </div>
-                        )}
-                    </div> // 맵핑된 요소의 닫는 <div> 태그
-                ))}
-                <div ref={messagesEndRef} />
+            {/* ========================================================= */}
+            {/* 💬 Chat Area (Scrollable Middle) */}
+            {/* ========================================================= */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 pt-8" style={{ scrollBehavior: 'smooth' }}>
+                <div className="max-w-3xl mx-auto">
+                    {messages
+                        .filter(message => message.content && message.content.trim() !== '')
+                        .map((message) => (
+                        <div key={message.id}>
+                            <MessageComponent message={message} lang={lang} />
+                            
+                            {/* 💡 오류 메시지 아래에 '키 확인' 버튼 노출 */}
+                            {message.isError && message.isAuthError && (
+                                <div className="flex justify-center mt-4 mb-8">
+                                    <button 
+                                        onClick={handleGoToGeminiStudio}
+                                        className="px-6 py-3 text-sm flex items-center bg-yellow-500 text-gray-900 font-semibold rounded-lg hover:bg-yellow-400 transition shadow-lg focus:outline-none focus:ring-4 focus:ring-yellow-500 focus:ring-opacity-50"
+                                    >
+                                        <Key className="w-4 h-4 mr-2" />
+                                        {t('checkApiKey', lang) || 'Gemini API 키 확인 / 발급'}
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                    <div ref={messagesEndRef} />
+                </div>
             </div>
 
-            {/* Input Area */}
-            <div className="p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 sticky bottom-0 z-10">
-                <div className="flex items-center space-x-3 max-w-2xl mx-auto">
+            {/* ========================================================= */}
+            {/* ✍️ Input Area (Sticky Bottom) */}
+            {/* ========================================================= */}
+            <div className="p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-2xl flex-shrink-0">
+                <div className="flex items-center space-x-3 max-w-3xl mx-auto">
                     <input
                         type="text"
                         value={currentInput}
                         onChange={(e) => setCurrentInput(e.target.value)}
                         onKeyDown={handleKeyDown} 
-                        placeholder={isLoading ? t('aiIsThinking', lang) : t('sermonAssistantInputPlaceholder', lang)}
+                        placeholder={isLoading ? (t('aiIsThinking', lang) || "응답 생성 중...") : (t('sermonAssistantInputPlaceholder', lang) || "주제나 성경 구절을 입력하세요.")}
                         disabled={isLoading || !user}
-                        className="flex-1 p-3 rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow disabled:opacity-50"
+                        className="flex-1 p-3 rounded-xl bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-white border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow disabled:opacity-50"
                     />
-                    {/* 전송 버튼: 디자인 개선 */}
+                    
                     <button
                         onClick={handleSendClick}
                         disabled={isLoading || !currentInput.trim() || !user} 
-                        className={`p-3 rounded-full transition-colors ${
+                        className={`p-3 rounded-xl transition-all ${
                             isLoading || !currentInput.trim() || !user 
                                 ? 'bg-indigo-300 dark:bg-indigo-700/50 cursor-not-allowed' 
                                 : 'bg-indigo-600 hover:bg-indigo-700 shadow-md focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50'
                         }`}
+                        title={t('send', lang) || '전송'}
                     >
-                        {/* Send Icon */}
-                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                        {isLoading ? (
+                             <Loader2 className="w-5 h-5 text-white animate-spin" />
+                        ) : (
+                            <Send className="w-5 h-5 text-white" />
+                        )}
                     </button>
                 </div>
                 {!user && (
-                    <p className="text-xs text-red-500 text-center mt-2">{t('loginToUseFeature', lang)}</p>
+                    <p className="text-xs text-red-500 text-center mt-2">{t('loginToUseFeature', lang) || '기능 사용을 위해 로그인 해주세요.'}</p>
                 )}
             </div>
+            
             {/* Custom Modal Render (props 전달) */}
             <CustomConfirmModal 
                 isModalOpen={isModalOpen}
