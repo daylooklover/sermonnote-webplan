@@ -6,9 +6,10 @@ import { getFirestore } from "firebase/firestore";
 import { createContext, useContext, useEffect, useState } from "react";
 
 // 1. 환경 변수에서 설정값 불러오기
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+
+ const firebaseConfig = {
+  apiKey: "AIzaSyDM-_APhiQ5mRWLP1KgXzVSxAPQ3NrwopE", // 이 부분을 수정!
+  authDomain: "sermonnote-new-gen-53302.firebaseapp.com",
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
