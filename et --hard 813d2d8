@@ -1,0 +1,8 @@
+[33m56966a4[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Tailwind config 복구 및 불필요한 node_modules 파일 삭제 반영
+[33m813d2d8[m first commit for sermonnote project
+[33me64acd9[m feat: Complete all multi-language features and fix PolicyModal rendering
+[33m9ded7db[m feat: Initial setup with Authentication and Quick Memo features
+[33mcd3ea70[m Initial commit for sermonnote project
+[33m485adaa[m feat: All core setup errors resolved and API structure ready. Firebase/Auth fixed, added /api/assistant-chat/route.js
+[33mbacf167[m Clean initial commit without large files
+[33m6ff77f3[m Initial commit

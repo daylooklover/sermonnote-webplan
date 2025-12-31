@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-// 🚨 경로 오류 수정: 확장자를 제거하고 경로 별칭(@/components/)을 다시 사용합니다.
 import { AuthProvider, useAuth } from '@/components/AuthContext';
-// 🚨 Firestore V9 API 사용을 위해 doc과 onSnapshot을 명확히 임포트합니다.
-import { doc, onSnapshot } from 'firebase/firestore'; 
+
+// 7행에 있던 중복된 임포트를 제거했습니다.
+
 import SermonDraftModal from '@/components/SermonDraftModal';
 import SermonAssistantComponent from '@/components/SermonAssistantComponent';
 import ExpositorySermonComponent from '@/components/ExpositorySermonComponent';
@@ -16,8 +16,12 @@ import LimitReachedModal from '@/components/LimitReachedModal';
 import LoginModal from '@/components/LoginModal';
 import QuickMemoModal from '@/components/QuickMemoModal';
 import DraggableQuickMemoIcon from '@/components/DraggableQuickMemoIcon';
-// 🚨 누락된 CopilotPanel 컴포넌트를 추가합니다.
+
+// 19행: 필요한 모든 것을 한 번에 임포트합니다.
+import { doc, onSnapshot, getDoc, collection } from 'firebase/firestore';
+
 import CopilotPanel from '@/components/CopilotPanel';
+// ... 이하 동일
 // 🚨 아이콘 컴포넌트도 경로 별칭으로 변경합니다.
 import {
     LoadingSpinner, GoBackIcon, PlusCircleIcon, BibleIcon, RealLifeIcon,
@@ -33,26 +37,28 @@ const MAX_SERMON_COUNT = 5;
 // ⭐️ Paddle 관련 상수 추가 ⭐️
 // --------------------------------------------------
 const PADDLE_VENDOR_ID = 42407; // 🚨 사용자 제공 Seller ID 적용
-const PADDLE_CHECKOUT_SUCCESS_URL = '/api/paddle/success'; // 🚨 실제 백엔드 Success API 경로로 변경 필요
+const PADDLE_CHECKOUT_SUCCESS_URL = '/'; // 🚨 실제 백엔드 Success API 경로로 변경 필요
 const PADDLE_CHECKOUT_FAIL_URL = '/api/paddle/fail'; // 🚨 실제 백엔드 Fail API 경로로 변경 필요
 
 
 // --------------------------------------------------
 // ⭐️ 상수 및 번역 정의 ⭐️
 // --------------------------------------------------
-const HERO_BG_COLOR = '#0f1a30';
-// 🚨 public/images 폴더 내의 실제 파일 이름인 'background.jpg'로 경로를 수정했습니다.
-const BACKGROUND_IMAGE_URL = '/images/background.jpg'; 
+const BACKGROUND_IMAGE_URL = '/images/background.jpg';
+const HERO_BG_COLOR = '#0f172a';
 
 const SERMON_LIMITS = SUBSCRIPTION_LIMITS;
 
 const languageOptions = [
-    { code: 'ko', nameKey: 'lang_ko' },
-    { code: 'en', nameKey: 'lang_en' },
-    { code: 'zh', nameKey: 'lang_zh' },
-    { code: 'ru', nameKey: 'lang_ru' },
-    { code: 'vi', 'nameKey': 'lang_vi' },
+  { code: 'ko', nameKey: 'lang_ko' },
+  { code: 'en', nameKey: 'lang_en' },
+  { code: 'zh', nameKey: 'lang_zh' },
+  { code: 'ru', nameKey: 'lang_ru' },
+  { code: 'vi', nameKey: 'lang_vi' } // 👈 베트남어(Vietnamese) 추가!
 ];
+
+// 2. 그 다음 컴포넌트를 정의합니다.
+
 
 const translations = {
     // ----------------------------------------------------
@@ -122,6 +128,17 @@ const translations = {
         realLifeSermonDescription: '삶의 고민과 문제의 핵심을 입력하세요.',
         topicPlaceholder: '주제를 입력하세요 (예: 직장 생활의 스트레스)',
         recommendScripture: '말씀 구절 추천 받기',
+        realLifeSermonTitle: '실생활 적용 설교',
+        enterRealLifeTopic: '실생활 주제 입력',
+        recommendScripture: '말씀 구절 추천 받기',
+        fetchScripture: '성경 본문 가져오기',
+        aiCommentary: 'AI 주석 생성',
+        generateSermon: '설교 원고 생성',
+        scripturePlaceholder: '성경 구절 입력 (예: 요 3:16)',
+        recommendedVersesTitle: '추천된 말씀과 제목',
+        generateSermonFromSelected: '선택한 말씀으로 설교 생성',
+        recommendScriptureBtn: '말씀 추천받기',
+        
 
         // **********************************************
         // 🔑 추가 요청된 키 (퀵메모 목록, 설교 초안 등)
@@ -133,6 +150,8 @@ const translations = {
         registerArchive: '아카이브 등록',
         print: '인쇄',
         downloadDraft: '초안 다운로드',
+        "remaining_sermons": "남은 설교 생성 횟수: {0}회",
+    "generate_sermon_btn": "메모로 설교 생성하기",
 
         // ExpositorySermonComponent.js에서 사용되는 키
         expositorySermonTitle: '강해 설교',
@@ -281,7 +300,17 @@ const translations = {
         realLifeSermonDescription: "Enter the core of life's struggles and issues.",
         topicPlaceholder: 'Enter topic (e.g., workplace stress)',
         recommendScripture: 'Recommend Scripture',
-
+        realLifeSermonTitle: 'Real-Life Application Sermon',
+        enterRealLifeTopic: 'Enter Real-Life Topic',
+        recommendScripture: 'Recommend Scripture',
+        fetchScripture: 'Fetch Bible Text',
+        aiCommentary: 'Generate AI Commentary',
+        generateSermon: 'Generate Sermon Draft',
+        scripturePlaceholder: 'Enter scripture (e.g., John 3:16)',
+        recommendedVersesTitle: 'Recommended Verses & Titles',
+        generateSermonFromSelected: 'Generate Sermon from Selected',
+        recommendScriptureBtn: 'Recommend Scripture',
+      
         // **********************************************
         // 🔑 추가 요청된 키 (퀵메모 목록, 설교 초안 등)
         // **********************************************
@@ -292,6 +321,8 @@ const translations = {
         registerArchive: 'Register Archive',
         print: 'Print',
         downloadDraft: 'Download Draft',
+        "remaining_sermons": "Remaining Sermons: {0}",
+    "generate_sermon_btn": "Generate Sermon from Memo",
 
         // ExpositorySermonComponent.js에서 사용되는 키
         expositorySermonTitle: 'Expository Sermon',
@@ -436,7 +467,19 @@ const translations = {
         realLifeSermonDescription: 'Введите суть жизненных проблем.',
         topicPlaceholder: 'Введите тему (напр., стресс на работе)',
         recommendScripture: 'Рекомендовать Писание',
-
+lang_ko: 'Корейский', lang_en: 'Английский', lang_zh: 'Китайский', lang_ru: 'Русский', lang_vi: 'Вьетнамский',
+        welcome: 'Добро пожаловать', logout: 'Выйти', login: 'Войти', user: 'Пользователь',
+        realLifeSermonTitle: 'Жизненная проповедь',
+        enterRealLifeTopic: 'Введите жизненную тему',
+        recommendScripture: 'Рекомендовать Писание',
+        fetchScripture: 'Получить текст Библии',
+        aiCommentary: 'Создать AI комментарий',
+        generateSermon: 'Создать черновик проповеди',
+        scripturePlaceholder: 'Введите стих (напр. Ин 3:16)',
+        recommendedVersesTitle: 'Рекомендованные стихи и заголовки',
+        generateSermonFromSelected: 'Создать проповедь из выбранного',
+        recommendScriptureBtn: 'Рекомендовать Писание',
+        
         // **********************************************
         // 🔑 추가 요청된 키 (퀵메мо 목록, 설교 초안 등)
         // **********************************************
@@ -447,7 +490,9 @@ const translations = {
         registerArchive: 'Зарегистрировать Архив',
         print: 'Печать',
         downloadDraft: 'Скачать Черновик',
-
+"remaining_sermons": "Осталось созданий проповедей: {0}",
+    "generate_sermon_btn": "Создать проповедь из заметки",
+  
         // ExpositorySermonComponent.js에서 사용되는 키
         expositorySermonTitle: 'Экспозиционная Проповедь',
         sermonLimit: 'Лимит проповедей: {0}',
@@ -592,6 +637,20 @@ const translations = {
         realLifeSermonDescription: '输入生活中挣扎和问题的核心。',
         topicPlaceholder: '输入主题 (例: 职场压力)',
         recommendScripture: '推荐经文',
+        lang_ko: '韩语', lang_en: '英语', lang_zh: '中文', lang_ru: '俄语', lang_vi: '越南语',
+        welcome: '欢迎', logout: '登出', login: '登录', user: '用户',
+        realLifeSermonTitle: '生活化讲道',
+        enterRealLifeTopic: '输入生活主题',
+        recommendScripture: '推荐经文',
+        fetchScripture: '获取圣经正文',
+        aiCommentary: '生成 AI 注解',
+        generateSermon: '生成讲道初稿',
+        scripturePlaceholder: '输入经文 (例: 约 3:16)',
+        topicPlaceholder: '请输入您的困扰或情况 (例: 职场压力)',
+        recommendedVersesTitle: '推荐的经文与标题',
+        generateSermonFromSelected: '根据选定内容生成讲道',
+        recommendScriptureBtn: '推荐经文',
+        // ... (필요한 나머지 키들 추가)
 
         // **********************************************
         // 🔑 추가 요청된 키 (퀵메모 목록, 설교 초안 등)
@@ -603,6 +662,8 @@ const translations = {
         registerArchive: '注册档案',
         print: '打印',
         downloadDraft: '下载草稿',
+        "remaining_sermons": "剩余讲道生成次数: {0}次",
+    "generate_sermon_btn": "从备忘录生成讲道",
 
         // ExpositorySermonComponent.js에서 사용되는 키
         expositorySermonTitle: '释经讲道',
@@ -749,6 +810,19 @@ const translations = {
         realLifeSermonDescription: 'Nhập vấn đề cốt lõ이 của đời sống.',
         topicPlaceholder: 'Nhập chủ đề (VD: áp lực công việc)',
         recommendScripture: 'Đề xuất Kinh thánh',
+        lang_ko: 'Tiếng Hàn', lang_en: 'Tiếng Anh', lang_zh: 'Tiếng Trung', lang_ru: 'Tiếng Nga', lang_vi: 'Tiếng Việt',
+        welcome: 'Chào mừng', logout: 'Đăng xuất', login: 'Đăng nhập', user: 'Người dùng',
+        realLifeSermonTitle: 'Bài giảng đời sống thực',
+        enterRealLifeTopic: 'Nhập chủ đề đời sống',
+        recommendScripture: 'Gợi ý lời Chúa',
+        fetchScripture: 'Lấy văn bản Kinh Thánh',
+        aiCommentary: 'Tạo chú giải AI',
+        generateSermon: 'Tạo bản thảo bài giảng',
+        scripturePlaceholder: 'Nhập đoạn Kinh thánh (VD: Giăng 3:16)',
+        topicPlaceholder: 'Nhập tình huống của bạn (VD: áp lực công việc)',
+        recommendedVersesTitle: 'Lời Chúa và chủ đề được gợi ý',
+        generateSermonFromSelected: 'Tạo bài giảng từ nội dung đã chọn',
+        recommendScriptureBtn: 'Gợi ý lời Chúa',
 
         // **********************************************
         // 🔑 추가 요청된 키 (퀵메모 목록, 설교 초안 등)
@@ -760,6 +834,8 @@ const translations = {
         registerArchive: 'Đăng Ký Lưu Trữ',
         print: 'In',
         downloadDraft: 'Tải Bản Nháp',
+        "remaining_sermons": "Số lần tạo bài giảng còn lại: {0} lần",
+    "generate_sermon_btn": "Tạo bài giảng từ ghi chú",
 
         // ExpositorySermonComponent.js에서 사용되는 키
         expositorySermonTitle: 'Bài giảng Giải Nghĩa',
@@ -849,182 +925,207 @@ const t = (key, lang = 'ko', ...args) => {
     return text;
 };
 
-// --------------------------------------------------
-// RenderLandingPage (랜딩 페이지)
-// --------------------------------------------------
 const RenderLandingPage = ({ onGetStarted, lang, loading }) => {
-    // 🚨 이 featureItems 정의 부분을 수정해야 합니다.
-    const featureItems = useMemo(() => [
-        { icon: '⚡', title: t('landing_title_1', lang), summary: t('landing_summary_1', lang) },
-        { icon: '🧠', title: t('landing_title_2', lang), summary: t('landing_summary_2', lang) },
-        { icon: '🌍', title: t('landing_title_3', lang), summary: t('landing_summary_3', lang) },
-        { icon: '💰', title: t('landing_title_4', lang), summary: t('landing_summary_4', lang) },
-        { icon: '✍️', title: t('landing_title_5', lang), summary: t('landing_summary_5', lang) },
+    const featureItems = useMemo(() => [
+        { icon: '⚡', title: t('landing_title_1', lang), summary: t('landing_summary_1', lang) },
+        { icon: '🧠', title: t('landing_title_2', lang), summary: t('landing_summary_2', lang) },
+        { icon: '🌍', title: t('landing_title_3', lang), summary: t('landing_summary_3', lang) },
+        { icon: '💰', title: t('landing_title_4', lang), summary: t('landing_summary_4', lang) },
+        { icon: '✍️', title: t('landing_title_5', lang), summary: t('landing_summary_5', lang) },
+        { icon: '🗂️', title: t('landing_title_6', lang), summary: t('landing_summary_6', lang) },
+    ], [lang]);
+
+    // 상단 2개와 하단 나머지로 분리
+    const topFeatures = featureItems.slice(0, 2);
+    const bottomFeatures = featureItems.slice(2);
+
+const HeroSection = () => (
+    <div
+        className="relative w-full flex flex-col items-center justify-center text-white overflow-hidden"
+        style={{
+            minHeight: 'calc(100vh - 64px)',
+            backgroundColor: HERO_BG_COLOR || '#0f172a',
+        backgroundImage: `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.7)), url(${BACKGROUND_IMAGE_URL})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+        }}
+    > {/* <--- 🚨 여기 이 꺾쇠(>)가 반드시 있어야 합니다! */}
+        {/* 배경을 살짝 어둡게 해서 글자를 돋보이게 합니다. */}
+        <div className="absolute inset-0 bg-black opacity-30"></div>
         
-        // 🛑 [수정할 부분]: title을 하드코딩 대신 t() 함수로 호출합니다.
-        { 
-             icon: '🗂️', 
-             // 🚨 landing_title_6 키를 사용하여 다국어 처리
-             title: t('landing_title_6', lang), 
-             summary: t('landing_summary_6', lang) 
-        }, 
-    ], [lang]);
+        {/* 별빛이 반짝이는 효과가 있었다면 여기에 유지하세요. */}
+        <div
+            className="absolute inset-0 z-0 opacity-10"
+            style={{
+                backgroundImage: 'radial-gradient(#ffffff20 1px, transparent 1px)',
+                backgroundSize: '20px 20px',
+            }}
+        ></div>
 
-    const HeroSection = () => (
-        <div
-            className="relative w-full flex flex-col items-center justify-center text-white overflow-hidden"
-            style={{
-                minHeight: 'calc(100vh - 64px)',
-                backgroundColor: HERO_BG_COLOR,
-                backgroundImage: BACKGROUND_IMAGE_URL 
-                    ? `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.7)), url(${BACKGROUND_IMAGE_URL})` 
-                    : `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.7))` ,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                backgroundRepeat: 'no-repeat',
-            }}
-        >
-            <div className="absolute inset-0 bg-black opacity-30"></div>
-            <div
-                className="absolute inset-0 z-0 opacity-10"
-                style={{
-                    backgroundImage: 'radial-gradient(#ffffff20 1px, transparent 1px)',
-                    backgroundSize: '20px 20px',
-                    animation: 'move-background 20s linear infinite, twinkle 2.5s infinite alternate',
-                }}
-            ></div>
-            <div className="relative text-center max-w-4xl p-8 z-20">
-                <h1 style={{ fontSize: '7rem', lineHeight: '1.1', fontWeight: 800 }} className="mb-4 drop-shadow-lg">SermonNote</h1>
-                <p className="text-xl md:text-2xl font-light mb-8 drop-shadow-md">{t('landingSubtitle', lang)}</p>
+        <div className="relative text-center max-w-4xl p-8 z-20">
+            <h1 style={{ fontSize: '7rem', lineHeight: '1.1', fontWeight: 800 }} className="mb-4 drop-shadow-lg">
+                SermonNote
+            </h1>
+            <p className="text-xl md:text-2xl font-light mb-8 drop-shadow-md">
+                {t('landingSubtitle', lang)}
+            </p>
 
-                <button
-                    onClick={onGetStarted}
-                    type="button"
-                    className={`px-10 py-4 bg-red-600 text-white text-lg font-semibold rounded-lg shadow-lg transition transform z-30 ${loading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-700 hover:scale-105'}`}
-                    disabled={loading}
-                >
-                    {t('start', lang)}
-                </button>
-            </div>
-        </div>
-    );
+            <button
+                onClick={onGetStarted}
+                disabled={loading}
+                className={`px-10 py-4 bg-red-600 text-white text-lg font-semibold rounded-lg shadow-lg transition transform ${
+                    loading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-700 hover:scale-105'
+                }`}
+            >
+                {t('start', lang)}
+            </button>
+        </div>
+    </div>
+);
 
-    const FeaturesSection = () => (
-        <div className="w-full bg-white py-16 px-8 dark:bg-gray-900">
-            <div className="max-w-6xl mx-auto">
-                <h2 className="text-3xl md:text-4xl text-center font-bold text-gray-800 dark:text-gray-100 mb-12 border-b-4 border-red-500 pb-2">{t('landing_title_main', lang)}</h2>
-                <p className="text-center text-gray-600 dark:text-gray-400 mb-12 max-w-3xl mx-auto">{t('landing_summary_main', lang)}</p>
+    const FeaturesSection = () => (
+        <div className="w-full bg-white py-20 px-8 dark:bg-gray-900">
+            <div className="max-w-6xl mx-auto">
+                <h2 className="text-3xl md:text-4xl text-center font-bold text-gray-800 dark:text-gray-100 mb-6">{t('landing_title_main', lang)}</h2>
+                <p className="text-center text-gray-600 dark:text-gray-400 mb-16 max-w-3xl mx-auto">{t('landing_summary_main', lang)}</p>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
-                    {featureItems.map((item, index) => (
-                        <div key={index} className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 transition hover:shadow-2xl flex flex-col h-full">
-                            <div className="text-4xl mb-4 text-red-500">{item.icon}</div>
-                            <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-3">{item.title}</h3>
-                            <p className="text-gray-600 dark:text-gray-400 text-sm flex-1">{item.summary}</p>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        </div>
-    );
+                {/* 🚀 상단 2개 섹션 (크게 강조) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mb-10">
+                    {topFeatures.map((item, index) => (
+                        <div key={index} className="bg-white dark:bg-gray-800 p-10 rounded-2xl shadow-xl border border-red-100 dark:border-gray-700 transition hover:-translate-y-2 flex flex-col items-center text-center">
+                            <div className="text-6xl mb-6">{item.icon}</div>
+                            <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">{item.title}</h3>
+                            <p className="text-gray-600 dark:text-gray-400 text-lg leading-relaxed">{item.summary}</p>
+                        </div>
+                    ))}
+                </div>
 
-    return (
-        <div className="w-full min-h-full flex flex-col items-center">
-            <HeroSection />
-            <FeaturesSection />
-        </div>
-    );
+                {/* 🚀 하단 3개 섹션 (그리드 배치) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
+                    {bottomFeatures.map((item, index) => (
+                        <div key={index} className="bg-gray-50 dark:bg-gray-800 p-8 rounded-xl shadow-md border border-gray-100 dark:border-gray-700 transition hover:shadow-xl flex flex-col h-full">
+                            <div className="text-4xl mb-4 text-red-500">{item.icon}</div>
+                            <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-3">{item.title}</h3>
+                            <p className="text-gray-600 dark:text-gray-400 text-sm leading-snug">{item.summary}</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+
+    return (
+        <div className="w-full min-h-full flex flex-col items-center">
+            <HeroSection />
+            <FeaturesSection />
+        </div>
+    );
 };
 
-
-// --------------------------------------------------
-// SermonSelection (설교 유형 선택)
-// --------------------------------------------------
 const SermonSelection = ({ user, setSelectedSermonType, openLoginModal, onGoToLanding, lang, loading }) => {
-    const sermonTypes = useMemo(() => [
-        { type: 'ai-assistant-sermon', title: t('sermonAssistant', lang), description: t('aiAssistantDesc', lang), icon: <PlusCircleIcon className="w-10 h-10 text-blue-500" /> },
-        { type: 'expository-sermon', title: t('expositorySermon', lang), description: t('expositoryDesc', lang), icon: <BibleIcon className="w-10 h-10 text-green-500" /> },
-        { type: 'real-life-sermon', title: t('realLifeSermon', lang), description: t('realLifeDesc', lang), icon: <RealLifeIcon className="w-10 h-10 text-red-500" /> },
-        { type: 'quick-memo-sermon', title: t('quickMemoSermon', lang), description: t('quickMemoDesc', lang), icon: <QuickMemoIcon className="w-10 h-10 text-yellow-500" /> },
-        { type: 'rebirth-sermon', title: t('rebirthSermon', lang), description: t('rebirthDesc', lang), icon: <RebirthIcon className="w-10 h-10 text-purple-500" /> },
-        { type: 'premium-upgrade', title: t('upgradeToPremium', lang), description: t('upgradeDesc', lang), icon: <PremiumIcon className="w-10 h-10 text-yellow-600" /> }
-    ], [lang]);
+    const sermonTypes = useMemo(() => [
+        { type: 'ai-assistant-sermon', title: t('sermonAssistant', lang), description: t('aiAssistantDesc', lang), icon: <PlusCircleIcon className="w-12 h-12 text-blue-500" /> },
+        { type: 'expository-sermon', title: t('expositorySermon', lang), description: t('expositoryDesc', lang), icon: <BibleIcon className="w-12 h-12 text-green-500" /> },
+        { type: 'real-life-sermon', title: t('realLifeSermon', lang), description: t('realLifeDesc', lang), icon: <RealLifeIcon className="w-10 h-10 text-red-500" /> },
+        { type: 'quick-memo-sermon', title: t('quickMemoSermon', lang), description: t('quickMemoDesc', lang), icon: <QuickMemoIcon className="w-10 h-10 text-yellow-500" /> },
+        { type: 'rebirth-sermon', title: t('rebirthSermon', lang), description: t('rebirthDesc', lang), icon: <RebirthIcon className="w-10 h-10 text-purple-500" /> },
+        { type: 'premium-upgrade', title: t('upgradeToPremium', lang), description: t('upgradeDesc', lang), icon: <PremiumIcon className="w-10 h-10 text-yellow-600" /> }
+    ], [lang]);
 
-    const isAuthenticated = user && user.uid;
+    const isAuthenticated = user && user.uid;
 
-    return (
-        <div className="w-full bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100 font-sans min-h-screen pt-16">
-            <main className="text-center space-y-8 p-8 max-w-7xl mx-auto">
-                <h2 className="text-4xl font-extrabold text-gray-800 dark:text-gray-100">
-                    {t('chooseSermonType', lang)}
-                </h2>
-                <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-                    {t('chooseSermonTypeDescription', lang)}
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto items-stretch">
-                    {sermonTypes.map(sermon => {
-                        const handleClick = () => {
-                            if (!isAuthenticated && sermon.type !== 'premium-upgrade') {
-                                openLoginModal();
-                            }
-                            else if (isAuthenticated || sermon.type === 'premium-upgrade') {
-                                setSelectedSermonType(sermon.type);
-                            }
-                        };
+    // 상단 2개와 하단 4개 분리
+    const topSermons = sermonTypes.slice(0, 2);
+    const bottomSermons = sermonTypes.slice(2);
 
-                        return (
-                            <button
-                                key={sermon.type}
-                                onClick={handleClick}
-                                disabled={loading}
-                                className={`flex flex-col items-center justify-start p-6 bg-white dark:bg-gray-800 rounded-xl shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-700 text-left h-full ${loading ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-2xl hover:scale-[1.01]'} `} 
-                            >
-                                <div className="flex flex-col items-center flex-1"> 
-                                    <div className="mb-4 text-center">{sermon.icon}</div>
-                                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-1 text-center">{sermon.title}</h3>
-                                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 text-center flex-1">{sermon.description}</p>
-                                </div>
-                            </button>
-                        );
-                    })}
-                </div>
-            </main>
-            <div className="text-center pb-8">
-                <button
-                    onClick={onGoToLanding}
-                    disabled={loading}
-                    className="mt-6 text-sm text-gray-500 hover:text-gray-800 transition"
-                >
-                    {t('sermonSelectionReturn', lang)}
-                </button>
-            </div>
-        </div>
-    );
+    return (
+        <div className="w-full bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 font-sans min-h-screen pt-20">
+            <main className="text-center space-y-12 p-8 max-w-6xl mx-auto">
+                <div className="space-y-4">
+                    <h2 className="text-4xl md:text-5xl font-black tracking-tight text-gray-900 dark:text-gray-100">
+                        {t('chooseSermonType', lang)}
+                    </h2>
+                    <p className="text-xl text-gray-500 dark:text-gray-400 max-w-2xl mx-auto leading-relaxed">
+                        {t('chooseSermonTypeDescription', lang)}
+                    </p>
+                </div>
+
+                {/* 🚀 상단 핵심 2개 (2열 배치) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
+                    {topSermons.map(sermon => {
+                        const handleClick = () => {
+                            if (!isAuthenticated && sermon.type !== 'premium-upgrade') openLoginModal();
+                            else setSelectedSermonType(sermon.type);
+                        };
+
+                        return (
+                            <button
+                                key={sermon.type}
+                                onClick={handleClick}
+                                disabled={loading}
+                                className={`flex flex-col items-center justify-center p-10 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl transition-all duration-300 border-2 border-transparent hover:border-blue-400 dark:hover:border-blue-500 h-full ${loading ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02]'} `} 
+                            >
+                                <div className="mb-6 transform transition-transform group-hover:scale-110">{sermon.icon}</div>
+                                <h3 className="text-2xl font-black mb-3">{sermon.title}</h3>
+                                <p className="text-gray-600 dark:text-gray-400 text-lg">{sermon.description}</p>
+                            </button>
+                        );
+                    })}
+                </div>
+
+                {/* 🚀 하단 나머지 4개 (4열 배치) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch">
+                    {bottomSermons.map(sermon => {
+                        const handleClick = () => {
+                            if (!isAuthenticated && sermon.type !== 'premium-upgrade') openLoginModal();
+                            else setSelectedSermonType(sermon.type);
+                        };
+
+                        return (
+                            <button
+                                key={sermon.type}
+                                onClick={handleClick}
+                                disabled={loading}
+                                className={`flex flex-col items-center p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg transition-all duration-300 border border-gray-100 dark:border-gray-700 h-full ${loading ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-2xl hover:-translate-y-1'} `} 
+                            >
+                                <div className="mb-4">{sermon.icon}</div>
+                                <h3 className="text-lg font-bold mb-2 leading-tight">{sermon.title}</h3>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-3">{sermon.description}</p>
+                            </button>
+                        );
+                    })}
+                </div>
+            </main>
+
+            <div className="text-center pb-12">
+                <button
+                    onClick={onGoToLanding}
+                    disabled={loading}
+                    className="text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors font-medium underline underline-offset-4"
+                >
+                    {t('sermonSelectionReturn', lang)}
+                </button>
+            </div>
+        </div>
+    );
 };
 
 // ... (t 함수, RenderLandingPage, SermonSelection 함수는 이 위에 정의되어 있다고 가정합니다.)
 
-// --------------------------------------------------
-// 메인 컴포넌트: HomeContent
-// --------------------------------------------------
 function HomeContent() {
-    // --------------------------------------------------
-    // 1. 🥇 Hooks 및 상수 정의 (무조건 최상단에 위치)
-    // --------------------------------------------------
+    // 1. Hooks 및 상태 정의
     const { user, loading, authError, handleLogout: contextLogout, authInstance, dbInstance } = useAuth();
-    
-    const DEVELOPER_UID = 'FilpYriiL7UYhSGrpdJrGxD0er2'; // 고객님 UID
+    const DEVELOPER_UID = 'FilpYriiL7UYhSGrpdJrGxD0er2';
     const isFirebaseError = authError ? authError.includes("Firebase") : false;
 
-    // 🚨 모든 상태 정의 (useState)
     const [isAppStuckLoading, setIsAppStuckLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const [sermonCount, setSermonCount] = useState(0);
     const [commentaryCount, setCommentaryCount] = useState(0);
     const [sermonDraft, setSermonDraft] = useState(null);
-
     const [userSubscription, setUserSubscription] = useState('free');
-    const [userFirestoreData, setUserFirestoreData] = useState(null); 
+    const [userFirestoreData, setUserFirestoreData] = useState(null);
 
     const [isLimitModalOpen, setIsLimitModalOpen] = useState(false);
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
@@ -1036,234 +1137,253 @@ function HomeContent() {
     const [viewMode, setViewMode] = useState('landing');
     const [selectedSermonType, setSelectedSermonType] = useState('sermon-selection');
     const [lang, setLang] = useState('en');
-    
-    // --------------------------------------------------
-    // 2. 🎣 모든 useEffect 및 핸들러 정의 (useCallback, useMemo)
-    // 🚨 함수 정의 순서를 지켜서 참조 오류(ReferenceError)를 방지합니다.
-    // --------------------------------------------------
-    
-    // 🚨 (1) 가장 기본적인 모달/상태 제어 함수 정의
+
+    // 2. useEffect 로직
+    useEffect(() => {
+        if (!user || !dbInstance) {
+            setUserFirestoreData(null);
+            return;
+        }
+       const appId = "default-app-id";
+const userDocRef = doc(dbInstance, `artifacts/${appId}/users/${user.uid}`); 
+        const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                setUserFirestoreData(data);
+                setUserSubscription(data.subscription || 'free');
+            } else {
+                setUserFirestoreData({ is_approved: false });
+            }
+        });
+        return () => unsubscribe();
+    }, [user, dbInstance]);
+
+    useEffect(() => { if (!loading) setIsAppStuckLoading(false); }, [loading]);
+
+    // 3. 핸들러 정의
     const openLoginModal = () => setIsLoginModalOpen(true);
-    const closeLoginModal = useCallback(() => { setIsLoginModalOpen(false); }, []);
-    const closeLimitModal = useCallback(() => { setIsLimitModalOpen(false); }, []);
-    const closeAuthErrorModal = useCallback(() => { setIsAuthErrorModalOpen(false); }, []);
-    const closeQuickMemoModal = useCallback(() => setIsQuickMemoModalOpen(false), []); // 🚨 선행 정의
-    
-    // 🚨 (2) handleLogout 정의
+    const closeLoginModal = useCallback(() => setIsLoginModalOpen(false), []);
+    const closeLimitModal = useCallback(() => setIsLimitModalOpen(false), []);
+    const closeAuthErrorModal = useCallback(() => setIsAuthErrorModalOpen(false), []);
+    const closeQuickMemoModal = useCallback(() => setIsQuickMemoModalOpen(false), []);
+
     const handleLogout = useCallback(async () => {
-        if (contextLogout) { 
+        if (contextLogout) {
             await contextLogout();
+            localStorage.removeItem('last_view_mode');
+            localStorage.removeItem('last_sermon_type');
             setViewMode('landing');
             setSelectedSermonType('sermon-selection');
-            setSermonCount(0);
-            setCommentaryCount(0);
-            setUserSubscription('free');
-            setIsAuthErrorModalOpen(false); 
         }
-    }, [contextLogout]); 
+    }, [contextLogout]);
 
-    // 🚨 (3) 퀵메모 저장 완료 핸들러 정의 (closeQuickMemoModal 참조)
-    const handleQuickMemoSaved = useCallback(() => { 
-        closeQuickMemoModal(); 
-        setViewMode('sermon'); 
-        setSelectedSermonType('quick-memo-sermon'); 
+    const handleQuickMemoSaved = useCallback(() => {
+        closeQuickMemoModal();
+        setViewMode('sermon');
+        setSelectedSermonType('quick-memo-sermon');
     }, [closeQuickMemoModal]);
 
-    // 🚨 (4) 나머지 핸들러 함수 정의
-    const closeDraftModalAndClear = useCallback(() => { setIsDraftModalOpen(false); setSermonDraft(null); }, []);
-    const closeDraftModal = useCallback(() => { setIsDraftModalOpen(false); }, []);
-    const handlePaddleSubscribe = useCallback(() => { /* Paddle 로직 유지 */ }, [user, lang, setErrorMessage, t]);
-    const handleLimitReached = useCallback(() => { setIsLimitModalOpen(true); }, []);
-    const openUpgradeModal = useCallback(() => { setIsLimitModalOpen(false); setSelectedSermonType('premium-upgrade'); setViewMode('sermon'); }, []);
-    const handleQuickMemoClick = useCallback(() => { if (user && user.uid) { setIsQuickMemoModalOpen(true); } else { openLoginModal(); } }, [user, openLoginModal]);
-    const openCopilotPanel = useCallback(() => { if (user && user.uid) { setIsCopilotPanelOpen(true); } else { openLoginModal(); } }, [user, openLoginModal]);
-    const closeCopilotPanel = useCallback(() => setIsCopilotPanelOpen(false), []);
-    const handleLogoClick = useCallback(() => { setViewMode('landing'); setSelectedSermonType('sermon-selection'); }, []);
-    const handleLoginSuccess = useCallback(() => { setIsLoginModalOpen(false); setViewMode('sermon'); setSelectedSermonType('sermon-selection'); }, []);
-    const handleGetStarted = useCallback(() => { if (loading) return; if (user) { setViewMode('sermon'); setSelectedSermonType('sermon-selection'); } else { openLoginModal(); } }, [user, loading, openLoginModal]);
-    const handleAPICall = useCallback(async (prompt, endpoint, usageType, authLoading) => { /* API 로직 유지 */ return null; }, [lang, setErrorMessage, setCommentaryCount, setSermonCount, t, user]);
+  const handleAPICall = useCallback(async (prompt, endpoint, usageType) => {
+    try {
+        const { GoogleGenerativeAI } = await import("@google/generative-ai"); // 다이내믹 임포트
+        const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-
-    // 🚨 useEffect 로직 재배치
-    useEffect(() => { /* isAppStuckLoading 로직 */ if (!loading) { setIsAppStuckLoading(false); } }, [loading, authError]);
-    useEffect(() => { /* authError 모달 로직 */ if (!loading && authError) { setIsAuthErrorModalOpen(true); } else if (!loading && !authError) { setIsAuthErrorModalOpen(false); } }, [loading, authError]);
-    useEffect(() => { /* sermonDraft 모달 로직 */ if (sermonDraft && sermonDraft.length > 0) { setIsDraftModalOpen(true); } }, [sermonDraft]);
-    
-    // Firestore 데이터 로드 useEffect
-    useEffect(() => {
-        if (user && user.uid && dbInstance && !loading) {
-            const userDocRef = doc(dbInstance, 'users', user.uid);
-            const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
-                const data = docSnap.exists() ? docSnap.data() : {};
-                setUserFirestoreData(data); 
-                setUserSubscription(data.subscription || 'free');
-            }, (error) => {
-                console.error("Error fetching subscription data:", error);
-                setErrorMessage(t('auth_error_desc', lang) + ` (Code: ${error.code})`);
-                setUserFirestoreData({});
-                setUserSubscription('free');
-            });
-            return () => unsubscribe();
-        } else if (!user) {
-            setUserSubscription('free');
-            setUserFirestoreData(null); 
+        // 타입별 지시문 설정
+        let systemPrompt = `당신은 목회자를 돕는 성경 전문가입니다. 반드시 '${lang}'으로 답변하세요.`;
+        if (usageType === 'copilot') {
+            systemPrompt = `당신은 말씀노트 사용법을 안내하는 도우미입니다. '${lang}'으로 친절하게 답하세요.`;
         }
-    }, [user, dbInstance, loading, lang, setErrorMessage]);
 
-    // 계산된 상태 (useMemo) 정의
+        const result = await model.generateContent(`${systemPrompt}\n\nUser Request: ${prompt}`);
+        const response = await result.response;
+        return response.text();
+    } catch (err) {
+        console.error("Gemini 직접 호출 에러:", err);
+        setErrorMessage(`${t('errorProcessingRequest', lang)}: ${err.message}`);
+        return null;
+    }
+}, [lang]);
+
+    const handleLimitReached = useCallback(() => setIsLimitModalOpen(true), []);
+    const openUpgradeModal = useCallback(() => {
+        setIsLimitModalOpen(false);
+        setSelectedSermonType('premium-upgrade');
+        setViewMode('sermon');
+    }, []);
+
+    const handleQuickMemoClick = useCallback(() => {
+        if (user) setIsQuickMemoModalOpen(true); else openLoginModal();
+    }, [user]);
+
+    const openCopilotPanel = useCallback(() => {
+        if (user) setIsCopilotPanelOpen(true); else openLoginModal();
+    }, [user]);
+
+    const handleLogoClick = () => { setViewMode('landing'); setSelectedSermonType('sermon-selection'); };
+    const handleLoginSuccess = () => { setIsLoginModalOpen(false); setViewMode('sermon'); };
+    const handleGetStarted = () => { if (user) { setViewMode('sermon'); } else { openLoginModal(); } };
+
     const SUBSCRIPTION_LIMITS_LOCAL = useMemo(() => ({
         free: { commentary: 5, sermon: 50 }, standard: { commentary: 200, sermon: 200 }, premium: { commentary: 9999, sermon: 9999 }
     }), []);
+
     const currentSubscription = userSubscription || 'free';
-    const isUnlimitedSermon = currentSubscription === 'premium';
     const sermonLimit = SUBSCRIPTION_LIMITS_LOCAL[currentSubscription]?.sermon;
-    const canGenerateSermon = isUnlimitedSermon || (sermonCount < sermonLimit);
-    const isUnlimited = currentSubscription === 'premium';
     const limit = SUBSCRIPTION_LIMITS_LOCAL[currentSubscription]?.commentary;
-    const canGenerateCommentary = isUnlimited || (commentaryCount < limit);
-    
-    // renderSermonComponent 정의
+
     const renderSermonComponent = useCallback(() => {
-        const onGoToSelection = () => setSelectedSermonType('sermon-selection');
         const commonProps = {
-             user, userId: user?.uid, db: dbInstance, errorMessage, setErrorMessage, setSermonDraft,
-             commentaryCount, canGenerateSermon, handleAPICall, onGoBack: onGoToSelection,
-             t: (key, ...args) => t(key, lang, ...args), lang, sermonCount, setSermonCount,
-             userSubscription: currentSubscription, onLimitReached: handleLimitReached, openLoginModal, 
-             openUpgradeModal, loading, handlePaddleSubscribe, canGenerateCommentary
+            user, userId: user?.uid, db: dbInstance, setSermonDraft, lang, t: (k, ...a) => t(k, lang, ...a),
+            sermonCount, sermonLimit, userSubscription: currentSubscription, onLimitReached: handleLimitReached,
+            openLoginModal, openUpgradeModal, handleAPICall, onGoBack: () => setSelectedSermonType('sermon-selection')
         };
+
         switch (selectedSermonType) {
-            case 'sermon-selection':
-                return (
-                    <SermonSelection user={user} setSelectedSermonType={setSelectedSermonType} openLoginModal={openLoginModal} lang={lang} loading={loading} onGoToLanding={() => setViewMode('landing')}/>
-                );
+            case 'sermon-selection': return <SermonSelection user={user} setSelectedSermonType={setSelectedSermonType} openLoginModal={openLoginModal} lang={lang} onGoToLanding={() => setViewMode('landing')} />;
             case 'ai-assistant-sermon': return <SermonAssistantComponent {...commonProps} />;
             case 'expository-sermon': return <ExpositorySermonComponent {...commonProps} />;
             case 'real-life-sermon': return <RealLifeSermonComponent {...commonProps} />;
             case 'quick-memo-sermon': return <QuickMemoSermonComponent {...commonProps} />;
             case 'rebirth-sermon': return <RebirthSermonFeature {...commonProps} />;
-            case 'premium-upgrade': return <PremiumSubscriptionPage {...commonProps} handlePaddleSubscribe={handlePaddleSubscribe} />;
-            default: return (
-                <div className="p-16 text-center text-red-500 w-full min-h-screen">
-                    <p className="text-xl mb-4">{t('unknownSermonTypeError', lang)}</p>
-                    <button onClick={onGoToSelection} className="mt-4 px-6 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition">
-                         {t('returnToSelection', lang)}
-                    </button>
-                </div>
-            );
+            case 'premium-upgrade': return <PremiumSubscriptionPage {...commonProps} />;
+            default: return <div className="p-10">{t('unknownSermonTypeError', lang)}</div>;
         }
-    }, [user, dbInstance, lang, selectedSermonType, errorMessage, setErrorMessage, sermonDraft, commentaryCount, canGenerateSermon, handleAPICall, sermonCount, setSermonCount, handlePaddleSubscribe, currentSubscription, handleLimitReached, openLoginModal, loading, t, canGenerateCommentary]);
+    }, [user, lang, selectedSermonType, sermonCount, sermonLimit, currentSubscription, dbInstance]);
 
-    
-    // --------------------------------------------------
-    // 3. 🛡️ 접근 제한 및 초기 로딩 체크 로직 (조건부 리턴)
-    // --------------------------------------------------
-    
-    const isAdmin = user && user.uid === DEVELOPER_UID;
-    const appLoading = loading || (user && userFirestoreData === null); 
+    const appLoading = loading;
+    if (appLoading) return <div className="flex h-screen items-center justify-center"><LoadingSpinner message={t('loadingAuth', lang)} /></div>;
 
-    if (appLoading) { 
-        return (
-            <div className="flex flex-col items-center justify-center min-h-screen text-gray-700 bg-gray-50 dark:bg-slate-900">
-                 <LoadingSpinner message={t('loadingAuth', lang)} />
-            </div>
-        );
-    }
-    
-    // 🚨 초대 회원 접근 제한 로직 (개발자 우회 포함)
-    if (user && !isAdmin) { 
-        if (userFirestoreData.is_approved !== true) { 
-            console.warn(`❌ Access denied for user ${user.uid}. Awaiting approval.`);
-            
-            // ⚠️ 접근 차단 UI 리턴
-            return (
-                <div className="flex flex-col items-center justify-center min-h-screen text-gray-700 bg-gray-100 dark:bg-gray-900 p-8">
-                    <h2 className="text-3xl font-bold mb-4 text-red-600">초대 전용 서비스입니다. 🔐</h2>
-                    <p className="text-lg text-center text-gray-800 dark:text-gray-200">
-                        회원님의 계정은 **승인 대기 중**입니다. 관리자의 승인이 완료된 후 다시 로그인해 주세요.<br/>
-                        (UID: {user.uid.substring(0, 10)}...)
-                    </p>
-                    <button 
-                        onClick={handleLogout} 
-                        className="mt-6 px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
-                    >
-                        {t('logout', lang)}
-                    </button>
-                </div>
-            );
-        }
-    }
-    
-    // --------------------------------------------------
-    // 4. 🟢 정상 서비스 UI 렌더링
-    // --------------------------------------------------
-    
+    // 4. 렌더링 결과
     return (
-        <div className="flex flex-col h-full bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100 font-sans min-h-screen">
-             <header className="flex justify-between items-center w-full px-8 py-4 bg-white dark:bg-gray-800 shadow-md sticky top-0 z-50">
-                 <span onClick={handleLogoClick} className="text-2xl font-bold text-gray-800 dark:text-gray-100 cursor-pointer">SermonNote</span>
-                 {user && !isFirebaseError ? (
-                     <button onClick={handleLogout} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">{t('logout', lang)}</button>
-                 ) : (
-                     <button onClick={openLoginModal} className="px-4 py-2 text-white rounded-lg transition bg-red-600 hover:bg-red-700" disabled={isFirebaseError}>{t('login', lang)}</button>
-                 )}
-                 <select value={lang} onChange={(e) => setLang(e.target.value)} className="p-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 border-gray-300 dark:border-gray-600">
-                        {languageOptions.map(option => (<option key={option.code} value={option.code}>{t(option.nameKey, lang)}</option>))}
-                    </select>
-             </header>
-             
-             <main className="flex-1 flex flex-col items-center w-full min-w-full">
-                 {viewMode === 'landing' || isFirebaseError ? (
-                     <RenderLandingPage onGetStarted={handleGetStarted} lang={lang} loading={appLoading} />
-                 ) : (
-                     <div className="w-full min-h-screen">
-                         {renderSermonComponent()}
-                     </div>
-                 )}
-             </main>
-             {/* 🚨 퀵메모 및 코파일럿 FAB 버튼 렌더링 */}
-             {user && !isFirebaseError && (
-                 <>
-                    <DraggableQuickMemoIcon
-                        onClick={handleQuickMemoClick}
-                        title={t('quickMemoSermon', lang)}
-                    />
-                    <button
-                        onClick={openCopilotPanel}
-                        className={`fixed bottom-8 right-8 p-3 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-2xl transition z-60 transform hover:scale-110 ${appLoading || isFirebaseError ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        title={t('copilotFAB', lang)}
-                        disabled={isFirebaseError}
-                    >
-                        <ChatIcon className="w-5 h-5" />
+        <div className="flex flex-col h-full bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100 min-h-screen">
+            <header className="flex justify-between items-center w-full px-8 py-4 bg-white dark:bg-gray-800 shadow-md sticky top-0 z-50">
+                <div className="flex items-center gap-6">
+                    <span onClick={handleLogoClick} className="text-2xl font-bold cursor-pointer">SermonNote</span>
+                    {user && !isFirebaseError && (
+                        <div className="hidden md:flex items-center gap-3 text-xs font-bold">
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-full border border-blue-100">
+                                <PlusCircleIcon className="w-3.5 h-3.5" />
+                                <span>{t('remaining_sermons', lang, (Math.max(0, sermonLimit - sermonCount)).toString())}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-600 rounded-full border border-green-100">
+                                <BibleIcon className="w-3.5 h-3.5" />
+                                <span>{t('commentaryLimit', lang, (Math.max(0, limit - commentaryCount)).toString())}</span>
+                            </div>
+                            {currentSubscription !== 'free' && (
+                                <span className="px-2 py-1 bg-yellow-400 text-yellow-900 rounded text-[10px] font-bold">
+                                    {t(`plan${currentSubscription.charAt(0).toUpperCase() + currentSubscription.slice(1)}Member`, lang)}
+                                </span>
+                            )}
+                        </div>
+                    )}
+                </div>
+                <div className="flex items-center gap-4">
+                    <select value={lang} onChange={(e) => setLang(e.target.value)} className="p-2 border rounded-lg bg-white dark:bg-gray-700 text-sm">
+                        {languageOptions.map(o => <option key={o.code} value={o.code}>{t(o.nameKey, lang)}</option>)}
+                    </select>
+                    <button onClick={user ? handleLogout : openLoginModal} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium">
+                        {user ? t('logout', lang) : t('login', lang)}
                     </button>
-                 </>
-             )}
-             
-             {/* 🚨 모달 컴포넌트 렌더링 */}
-             {isDraftModalOpen && sermonDraft && (<SermonDraftModal isOpen={isDraftModalOpen} onClose={closeDraftModalAndClear} onRegisterArchive={closeDraftModal} sermonDraft={sermonDraft} userId={user?.uid} db={dbInstance} t={(key, ...args) => t(key, lang, ...args)} lang={lang} openUpgradeModal={openUpgradeModal} userSubscription={currentSubscription} />)}
-             {isLimitModalOpen && (<LimitReachedModal isOpen={isLimitModalOpen} onClose={closeLimitModal} onUpgrade={openUpgradeModal} t={(key, ...args) => t(key, lang, ...args)} lang={lang} />)}
-             {isLoginModalOpen && (<LoginModal isOpen={isLoginModalOpen} onClose={closeLoginModal} onLoginSuccess={handleLoginSuccess} Instance={authInstance} t={(key, ...args) => t(key, lang, ...args)} lang={lang} />)}
-             {isAuthErrorModalOpen && authError && (<LimitReachedModal isOpen={isAuthErrorModalOpen} onClose={closeAuthErrorModal} title={t('auth_error_title', lang)} description={t('auth_error_desc', lang)} upgradeButton={null} closeButton={t('closeButton', lang)} t={(key, ...args) => t(key, lang, ...args)} lang={lang} />)}
-             {isQuickMemoModalOpen && (<QuickMemoModal onClose={closeQuickMemoModal} userId={user?.uid} db={dbInstance} t={(key, ...args) => t(key, lang, ...args)} lang={lang} onMemoSaved={handleQuickMemoSaved} />)}
-             <CopilotPanel isOpen={isCopilotPanelOpen} onClose={closeCopilotPanel} userId={user?.uid} t={(key, ...args) => t(key, lang, ...args)} lang={lang} languageOptions={languageOptions} setLang={setLang} handleAPICall={handleAPICall} setErrorMessage={setErrorMessage} sermonCount={sermonCount} sermonLimit={sermonLimit} userSubscription={currentSubscription} openLoginModal={openLoginModal} />
+                </div>
+            </header>
+            
+            <main className="flex-1 flex flex-col items-center w-full">
+                {viewMode === 'landing' ? <RenderLandingPage onGetStarted={handleGetStarted} lang={lang} loading={appLoading} /> : renderSermonComponent()}
+            </main>
+
+            {user && (
+                <>
+                    <DraggableQuickMemoIcon onClick={handleQuickMemoClick} title={t('quickMemoSermon', lang)} />
+                    <button onClick={openCopilotPanel} className="fixed bottom-8 right-8 p-3 bg-red-600 text-white rounded-full shadow-2xl z-50 transform hover:scale-110 transition-all" title={t('copilotFAB', lang)}>
+                        <ChatIcon className="w-6 h-6" />
+                    </button>
+                </>
+            )}
+
+          {/* --- 모달 및 패널 레이어 섹션 --- */}
+            {isDraftModalOpen && sermonDraft && (
+                <SermonDraftModal 
+                    isOpen={isDraftModalOpen} 
+                    onClose={() => setIsDraftModalOpen(false)} 
+                    sermonDraft={sermonDraft} 
+                    userId={user?.uid} 
+                    db={dbInstance} 
+                    t={(k, ...a) => t(k, lang, ...a)} 
+                    lang={lang} 
+                    userSubscription={currentSubscription} 
+                />
+            )}
+
+            {isLimitModalOpen && (
+                <LimitReachedModal 
+                    isOpen={isLimitModalOpen} 
+                    onClose={closeLimitModal} 
+                    onUpgrade={openUpgradeModal} 
+                    t={(k, ...a) => t(k, lang, ...a)} 
+                    lang={lang} 
+                />
+            )}
+
+            {isLoginModalOpen && (
+                <LoginModal 
+                    isOpen={isLoginModalOpen} 
+                    onClose={closeLoginModal} 
+                    onLoginSuccess={handleLoginSuccess} 
+                    Instance={authInstance} 
+                    t={(k, ...a) => t(k, lang, ...a)} 
+                    lang={lang} 
+                />
+            )}
+
+            {isQuickMemoModalOpen && (
+                <QuickMemoModal 
+                    onClose={closeQuickMemoModal} 
+                    userId={user?.uid} 
+                    db={dbInstance} 
+                    t={(k, ...a) => t(k, lang, ...a)} 
+                    lang={lang} 
+                    onMemoSaved={handleQuickMemoSaved} 
+                />
+            )}
+
+            {/* ✅ 코파일럿 패널: lang과 t 함수가 정확히 전달되어야 내부 문구가 바뀝니다. */}
+            <CopilotPanel 
+                isOpen={isCopilotPanelOpen} 
+                onClose={() => setIsCopilotPanelOpen(false)} 
+                userId={user?.uid} 
+                lang={lang} 
+                t={(k, ...a) => t(k, lang, ...a)} 
+                handleAPICall={handleAPICall} 
+                openLoginModal={openLoginModal} 
+            />
         </div>
     );
 }
 
-
 // --------------------------------------------------
-// export default: HomeContent를 AuthProvider로 감싸서 export
+// 5. 메인 Home 컴포넌트 (Next.js가 인식하는 기본 export)
 // --------------------------------------------------
 export default function Home() {
     useEffect(() => {
+        // 클라이언트 사이드인지 확인
+        if (typeof window === 'undefined') return;
+
+        // Paddle SDK 로드 로직
         if (typeof window.Paddle === 'undefined') {
             const script = document.createElement('script');
-            // Sandbox URL (테스트 환경)
-            script.src = 'https://cdn.paddle.com/paddle/paddle.js'; 
+            script.src = 'https://cdn.paddle.com/paddle/paddle.js';
+            script.async = true;
+            
             script.onload = () => {
-                window.Paddle.Setup({ vendor: PADDLE_VENDOR_ID, debug: true });
+                if (window.Paddle) {
+                    window.Paddle.Setup({
+                        vendor: 42407, // 사용자 Seller ID
+                        debug: true
+                    });
+                }
             };
-            document.body.appendChild(script);
+            document.head.appendChild(script);
         }
     }, []);
 

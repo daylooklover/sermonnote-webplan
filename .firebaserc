@@ -7,6 +7,9 @@
       "hosting": {
         "next": [
           "sermonnote-project"
+        ],
+        "sermonnote-new-gen-53302": [
+          "sermonnote-new-gen-53302"
         ]
       }
     }

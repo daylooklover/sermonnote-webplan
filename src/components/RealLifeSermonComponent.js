@@ -1,254 +1,237 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-// 🚨 [FIX]: 아이콘 경로를 절대 경로로 수정합니다.
-import { GoBackIcon, LoadingSpinner, SearchIcon, PlusCircleIcon, RealLifeIcon } from '@/components/IconComponents.js'; 
+import React, { useState, useCallback, useMemo } from 'react';
+import { GoBackIcon, LoadingSpinner, RealLifeIcon } from '@/components/IconComponents.js'; 
 import { SUBSCRIPTION_LIMITS } from '@/lib/constants'; 
-// API 호출 경로 및 상수
-const API_ENDPOINT = '/api/sermon-generator'; 
+import { CheckCircle2, Zap, AlertTriangle } from 'lucide-react';
+// 🚨 Gemini 직접 호출을 위한 라이브러리 추가
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
 const MAX_SERMON_COUNT = 5; 
 
-// 💡 RealLifeSermonComponent 정의
 const RealLifeSermonComponent = ({
-    setSermonDraft, 
-    user, 
-    userSubscription, 
-    setErrorMessage, 
-    errorMessage, // 🚨 [FIX] errorMessage prop 추가
-    lang, 
-    openLoginModal, 
-    onLimitReached, 
-    sermonCount, 
-    canGenerateSermon, 
-    handleAPICall, // 👈 중앙 집중식 API 호출 함수
-    onGoBack,
-    t // 👈 t 함수는 prop으로 받습니다.
+    setSermonDraft, 
+    user, 
+    userSubscription = 'free', 
+    setErrorMessage, 
+    errorMessage, 
+    lang = 'ko', 
+    openLoginModal, 
+    onLimitReached, 
+    sermonCount = 0,
+    sermonLimit = 5,
+    canGenerateSermon = false, 
+    onGoBack,
+    t, 
+    refreshUserData
 }) => {
-    
-    // 상태 관리
-    const [topicInput, setTopicInput] = useState('');
-    const [recommendations, setRecommendations] = useState([]); // AI 추천 목록
-    const [selectedRecommendation, setSelectedRecommendation] = useState(null); // 사용자가 선택한 추천
-    
-    const [isRecommending, setIsRecommending] = useState(false); // 추천 로딩 상태
-    const [isSermonLoading, setIsSermonLoading] = useState(false); // 설교 생성 로딩 상태
+    
+    const [topicInput, setTopicInput] = useState('');
+    const [recommendations, setRecommendations] = useState([]); 
+    const [selectedRecommendation, setSelectedRecommendation] = useState(null); 
+    const [isRecommending, setIsRecommending] = useState(false); 
+    const [isSermonLoading, setIsSermonLoading] = useState(false); 
 
-    // 에러 메시지를 안전하게 설정하는 헬퍼 함수
-    const safeSetErrorMessage = useCallback((msg) => {
-        if (typeof setErrorMessage === 'function') {
-            setErrorMessage(msg);
-        }
-    }, [setErrorMessage]);
+    const safeSetErrorMessage = useCallback((msg) => {
+        if (typeof setErrorMessage === 'function') {
+            setErrorMessage(msg);
+            if (msg) setTimeout(() => setErrorMessage(''), 5000);
+        }
+    }, [setErrorMessage]);
 
-    // 💡 설교 생성 가능 횟수 표시
-    const remainingSermons = useMemo(() => {
-        const limit = userSubscription === 'premium' ? 9999 : (SUBSCRIPTION_LIMITS[userSubscription]?.sermon || MAX_SERMON_COUNT);
-        return limit - sermonCount;
-    }, [userSubscription, sermonCount]);
+    const remainingSermons = useMemo(() => {
+        const limitValue = userSubscription === 'premium' ? 9999 : (SUBSCRIPTION_LIMITS[userSubscription]?.sermon || MAX_SERMON_COUNT);
+        const calc = limitValue - sermonCount;
+        return calc < 0 ? 0 : calc;
+    }, [userSubscription, sermonCount]);
 
+    // 🚨 [수정] Gemini 직접 호출 공통 함수 (404 에러 방지)
+    const callGeminiDirectly = useCallback(async (prompt, type) => {
+        try {
+            const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+            const genAI = new GoogleGenerativeAI(apiKey);
+            const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    // --------------------------------------------------
-    // 1. AI 성경/제목 추천 받기 (Gemini API: type='real-life-recommendation')
-    // --------------------------------------------------
-    const handleTopicRecommendation = useCallback(async () => {
-        if (!user) { openLoginModal(); return; }
-        if (!topicInput.trim()) { safeSetErrorMessage(t('enterTopic', lang)); return; }
+            // 다국어 성경 버전 매핑
+            const langMap = {
+                ko: { name: "Korean", bible: "개역개정" },
+                en: { name: "English", bible: "NIV/KJV" },
+                zh: { name: "Chinese", bible: "CUV" },
+                ru: { name: "Russian", bible: "Synodal" },
+                vi: { name: "Vietnamese", bible: "Bản Truyền Thống" }
+            };
+            const target = langMap[lang] || langMap.ko;
 
-        setIsRecommending(true);
-        safeSetErrorMessage('');
-        setRecommendations([]);
-        setSelectedRecommendation(null);
+            let systemInstruction = `당신은 세계적인 성경 전문가입니다. 모든 답변은 반드시 '${target.name}'으로 작성하세요. `;
+            
+            if (type === 'recommend_scripture') {
+                systemInstruction += `사용자의 상황에 적합한 성경 구절과 설교 제목 3개를 추천하세요. 
+                반드시 다음 JSON 형식으로만 응답하세요: [{"scripture": "본문주소", "title": "설교제목"}]`;
+            } else if (type === 'sermon') {
+                systemInstruction += `성도들에게 감동을 주는 전문적인 설교 원고를 작성하세요.`;
+            }
 
-        try {
-            const promptText = `Real-life topic: "${topicInput}". Recommend 3 scripture/title options.`;
-            
-            // ✅ API 호출: handleAPICall 사용, type: real-life-recommendation (JSON 응답 스키마 사용)
-            const responseText = await handleAPICall(
-                promptText, 
-                API_ENDPOINT, 
-                'real-life-recommendation'
-            );
+            const result = await model.generateContent(`${systemInstruction}\n\nUser Request: ${prompt}`);
+            const response = await result.response;
+            return response.text();
+        } catch (error) {
+            console.error("Gemini 호출 오류:", error);
+            throw error;
+        }
+    }, [lang]);
 
-            if (!responseText) {
-                // 이 부분이 실행되는 것은 API 호출이 실패했다는 의미입니다.
-                // handleAPICall에서 에러 메시지를 설정했으므로 여기서 추가 설정은 생략
-                return;
-            }
-            
-            // 🚨 JSON 응답 파싱 (서버에서 JSON을 반환한다고 가정)
-            let parsedRecommendations = [];
-            try {
-                parsedRecommendations = JSON.parse(responseText);
-                if (!Array.isArray(parsedRecommendations)) throw new Error("Not Array");
-            } catch (e) {
-                console.error("Failed to parse recommendation JSON:", e);
-                // JSON 파싱 실패 시, API 키 오류로 처리 (Gemini에서 JSON 포맷을 지키지 못했을 때)
-                safeSetErrorMessage(t('invalidApiResponse', lang) + " (JSON 파싱 오류)"); 
-                return;
-            }
+    const extractJsonArray = (text) => {
+        try {
+            const jsonMatch = text.match(/\[[\s\S]*\]/); 
+            if (jsonMatch) return JSON.parse(jsonMatch[0]);
+            return JSON.parse(text);
+        } catch (e) {
+            return null;
+        }
+    };
 
-            setRecommendations(parsedRecommendations.slice(0, 3)); // 최대 3개만 표시
+    // 1단계: 주제 기반 추천 (직접 호출 방식으로 변경)
+    const handleTopicRecommendation = useCallback(async () => {
+        if (!user) { openLoginModal(); return; }
+        if (!topicInput.trim()) { safeSetErrorMessage(t('enterRealLifeTopic', lang)); return; }
 
-        } catch (error) {
-            console.error("Recommendation API Call Failed:", error);
-            // 404 오류가 여기로 잡히며, 이 메시지를 출력합니다.
-            safeSetErrorMessage(t('recommendationFailed', lang) + ` (오류: ${error.message})`);
-        } finally {
-            setIsRecommending(false);
-        }
-    }, [user, topicInput, lang, safeSetErrorMessage, openLoginModal, handleAPICall, t]);
+        setIsRecommending(true);
+        safeSetErrorMessage('');
+        setRecommendations([]);
+        setSelectedRecommendation(null);
 
+        try {
+            const promptText = `Situation: "${topicInput}"`;
+            const responseText = await callGeminiDirectly(promptText, 'recommend_scripture');
 
-    // --------------------------------------------------
-    // 2. 설교 초안 생성 (Gemini API: type='sermon')
-    // --------------------------------------------------
-    const handleSermonGeneration = useCallback(async () => {
-        if (!user) { openLoginModal(); return; }
-        if (!selectedRecommendation) { safeSetErrorMessage("먼저 추천 목록에서 하나를 선택해 주세요."); return; }
-        
-        // 🚨 제한 로직 활성화
-        if (!canGenerateSermon) { safeSetErrorMessage(t('sermonLimitError', lang)); onLimitReached(); return; }
+            if (responseText) {
+                const parsed = extractJsonArray(responseText);
+                if (parsed && Array.isArray(parsed)) {
+                    setRecommendations(parsed.slice(0, 3));
+                } else {
+                    throw new Error("Invalid Format");
+                }
+            }
+        } catch (error) {
+            safeSetErrorMessage(t('errorProcessingRequest', lang));
+        } finally {
+            setIsRecommending(false);
+        }
+    }, [user, topicInput, lang, safeSetErrorMessage, openLoginModal, callGeminiDirectly, t]);
 
-        setIsSermonLoading(true);
-        safeSetErrorMessage('');
+    // 2단계: 설교 생성 (직접 호출 방식으로 변경)
+    const handleSermonGeneration = useCallback(async () => {
+        if (!user) { openLoginModal(); return; }
+        if (!selectedRecommendation) return;
+        if (!canGenerateSermon) { onLimitReached(); return; }
 
-        const { scripture, title } = selectedRecommendation;
-        
-        try {
-            // 🚨 [설교 생성 프롬프트]: 주제, 성경구절, 제목을 모두 포함하여 상세 요청
-            const promptText = 
-                `Write a detailed, full-length sermon (between 2500 and 3000 characters) on the topic of "${topicInput}" using the central theme and scripture: Title: "${title}", Scripture: "${scripture}". ` +
-                `Focus on applying the biblical truth to the real-life topic "${topicInput}". ` +
-                `The output must be a ready-to-deliver sermon text written in a direct preaching style (설교체), NOT just a hierarchical outline. DO NOT use Markdown headers. ` +
-                `RESPOND IN THE LANGUAGE SPECIFIED BY THE LANGUAGE CODE: ${lang}.`;
-            
-            // ✅ API 호출: handleAPICall 사용, type: sermon
-            const sermonResult = await handleAPICall(
-                promptText, 
-                API_ENDPOINT, 
-                'sermon'
-            );
+        setIsSermonLoading(true);
+        safeSetErrorMessage('');
 
-            if (sermonResult) {
-                setSermonDraft(sermonResult); // 부모 컴포넌트에 초안 전달 (모달 트리거)
-            } else {
-                // handleAPICall에서 에러 메시지를 이미 설정했으므로 여기서 추가 설정은 생략
-            }
-            
-        } catch (error) {
-            console.error("Sermon Generation API Call Failed:", error);
-            safeSetErrorMessage(t('sermonGenerationFailed', lang));
-        } finally {
-            setIsSermonLoading(false);
-        }
-    }, [
-        user, selectedRecommendation, topicInput, lang, canGenerateSermon, 
-        safeSetErrorMessage, openLoginModal, onLimitReached, handleAPICall, setSermonDraft, t
-    ]);
-    
-    // --------------------------------------------------
-    // 3. UI 렌더링
-    // --------------------------------------------------
-    const isLoading = isRecommending || isSermonLoading;
-    
-    return (
-        <div className="flex flex-col h-full min-h-screen bg-gray-100 dark:bg-slate-900 p-6 sm:p-8">
-            
-            {/* Header and Back Button */}
-            <div className="p-4 bg-white dark:bg-gray-800 rounded-xl shadow-md mb-6 flex items-center justify-between sticky top-0 z-10">
-                <button 
-                    onClick={onGoBack} 
-                    className="flex items-center text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors p-2 rounded-lg"
-                >
-                    <GoBackIcon className="w-5 h-5 mr-1" />
-                    {t('goBack', lang)} 
-                </button>
-                <h1 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center"><RealLifeIcon className="w-6 h-6 mr-2 text-red-500" />{t('realLifeSermon', lang)}</h1>
-                <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
-                    <span className="font-semibold">{t('sermonLimit', lang, remainingSermons)}</span>
-                </div>
-            </div>
+        const { scripture, title } = selectedRecommendation;
+        
+        try {
+            const promptText = `Situation: "${topicInput}", Title: "${title}", Verse: "${scripture}". Write a professional sermon draft.`;
+            const sermonResult = await callGeminiDirectly(promptText, 'sermon');
 
-            <div className="max-w-4xl mx-auto w-full space-y-6">
-                
-                {/* Topic Input Section */}
-                <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
-                    <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
-                        {t('enterRealLifeTopic', lang)}
-                    </h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{t('realLifeSermonDescription', lang)}</p>
-                    
-                    <input
-                        type="text"
-                        value={topicInput}
-                        onChange={(e) => setTopicInput(e.target.value)}
-                        placeholder={t('topicPlaceholder', lang)}
-                        className="w-full p-3 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-white border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                        disabled={isLoading}
-                    />
-                    
-                    <button
-                        onClick={handleTopicRecommendation}
-                        disabled={!topicInput.trim() || isLoading}
-                        className="mt-4 w-full px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 transition disabled:opacity-50"
-                    >
-                        {isRecommending ? <LoadingSpinner className="w-5 h-5 inline mr-2 animate-spin" /> : t('recommendScripture', lang)}
-                    </button>
-                </div>
+            if (sermonResult) {
+                setSermonDraft(sermonResult);
+                if (typeof refreshUserData === 'function') await refreshUserData(); 
+            }
+        } catch (error) {
+            safeSetErrorMessage(t('generationFailed', lang));
+        } finally {
+            setIsSermonLoading(false);
+        }
+    }, [user, selectedRecommendation, topicInput, canGenerateSermon, onLimitReached, callGeminiDirectly, setSermonDraft, t, safeSetErrorMessage, refreshUserData]);
 
-                {/* Recommendation Output Section */}
-                {recommendations.length > 0 && (
-                    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
-                        <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
-                            {t('aiScriptureRecommendation', lang)}
-                        </h2>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{t('recommendationInstruction', lang)}</p>
+    return (
+        <div className="flex flex-col h-full min-h-screen bg-gray-50 dark:bg-slate-900">
+            <header className="p-4 bg-white dark:bg-gray-800 border-b flex items-center justify-between sticky top-0 z-10 shadow-sm">
+                <button onClick={onGoBack} className="flex items-center text-gray-600 dark:text-gray-300 hover:text-red-600 transition-colors">
+                    <GoBackIcon className="w-5 h-5 mr-1" /> {t('goBack', lang)} 
+                </button>
+                <h1 className="text-xl font-bold text-gray-800 dark:text-white flex items-center">
+                    <RealLifeIcon className="w-6 h-6 mr-2 text-red-500" /> {t('realLifeSermon', lang)}
+                </h1>
+                <div className="text-sm font-bold text-red-600 bg-red-50 px-4 py-1.5 rounded-full border border-red-100 shadow-inner">
+                    {t('sermonLimit', lang, (sermonLimit - sermonCount).toString())}
+                </div>
+            </header>
 
-                        <div className="space-y-3">
-                            {recommendations.map((rec, index) => (
-                                <div 
-                                    key={index}
-                                    onClick={() => setSelectedRecommendation(rec)}
-                                    className={`p-4 rounded-lg border cursor-pointer transition ${
-                                        selectedRecommendation?.scripture === rec.scripture
-                                            ? 'bg-purple-100 dark:bg-purple-900/40 border-purple-500 shadow-md'
-                                            : 'bg-gray-50 dark:bg-gray-700 border-gray-300 hover:border-purple-400'
-                                    }`}
-                                >
-                                    <p className="font-semibold text-gray-800 dark:text-white">{rec.title}</p>
-                                    <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{rec.scripture}</p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-                
-                {/* Sermon Generation Button */}
-                {recommendations.length > 0 && (
-                    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 text-center">
-                        <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
-                            {t('generateSermonFromSelection', lang)}
-                        </h2>
-                        <button
-                            onClick={handleSermonGeneration}
-                            disabled={!selectedRecommendation || isLoading || remainingSermons <= 0}
-                            className="px-8 py-4 bg-red-600 text-white font-extrabold text-lg rounded-xl shadow-lg hover:bg-red-700 transition disabled:opacity-50"
-                        >
-                            {isSermonLoading ? t('generatingSermon', lang) : t('generateSermonFromSelection', lang)}
-                        </button>
-                        {isSermonLoading && <LoadingSpinner message={t('generatingSermon', lang)} className="mt-4" />}
-                    </div>
-                )}
+            <div className="max-w-3xl mx-auto w-full p-6 space-y-6">
+                <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl border-t-4 border-red-600">
+                    <h2 className="text-lg font-bold mb-4 flex items-center text-gray-800 dark:text-white">
+                        <Zap className="w-5 h-5 mr-2 text-yellow-500" /> {t('enterRealLifeTopic', lang)}
+                    </h2>
+                    <textarea
+                        value={topicInput}
+                        onChange={(e) => setTopicInput(e.target.value)}
+                        placeholder={t('topicPlaceholder', lang)}
+                        className="w-full p-5 rounded-xl bg-gray-50 dark:bg-gray-700 border-2 border-transparent focus:border-red-500 outline-none h-32 resize-none text-lg transition-all dark:text-white"
+                        disabled={isSermonLoading}
+                    />
+                    <button
+                        onClick={handleTopicRecommendation}
+                        disabled={!topicInput.trim() || isRecommending || isSermonLoading}
+                        className="mt-5 w-full py-4 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition-all flex items-center justify-center text-lg shadow-lg disabled:opacity-50"
+                    >
+                        {isRecommending ? <LoadingSpinner className="mr-2" /> : <Zap className="mr-2 w-5 h-5 text-yellow-400" />}
+                        {t('recommendScriptureBtn', lang)}
+                    </button>
+                </div>
 
-                {/* Error Message Display */}
-                {errorMessage && errorMessage.length > 0 && (
-                    <div className="p-4 bg-red-100 dark:bg-red-900/20 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-300 rounded-lg text-center font-medium">
-                        🚨 {errorMessage}
-                    </div>
-                )}
-            </div>
-        </div>
-    );
+                {recommendations.length > 0 && (
+                    <div className="space-y-4 py-4 animate-in fade-in slide-in-from-bottom-5">
+                        <h3 className="text-lg font-bold px-1 flex items-center text-gray-800 dark:text-white">
+                            <CheckCircle2 className="w-5 h-5 mr-2 text-green-500" /> 
+                            {t('recommendedVersesTitle', lang)}
+                        </h3>
+                        <div className="grid gap-3">
+                            {recommendations.map((rec, index) => (
+                                <div 
+                                    key={index}
+                                    onClick={() => setSelectedRecommendation(rec)}
+                                    className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${
+                                        selectedRecommendation?.scripture === rec.scripture
+                                        ? 'border-red-500 bg-red-50 dark:bg-red-900/20 ring-2 ring-red-100 shadow-md'
+                                        : 'border-gray-200 bg-white dark:bg-gray-800 hover:border-red-300'
+                                    }`}
+                                >
+                                    <div className="flex justify-between items-center">
+                                        <div className="flex-1">
+                                            <p className={`font-black text-xl mb-1 ${selectedRecommendation?.scripture === rec.scripture ? 'text-red-700 dark:text-red-400' : 'text-gray-800 dark:text-white'}`}>{rec.title}</p>
+                                            <p className="text-sm font-medium text-gray-500 italic">{rec.scripture}</p>
+                                        </div>
+                                        {selectedRecommendation?.scripture === rec.scripture && <CheckCircle2 className="text-red-500 w-7 h-7" />}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <button
+                            onClick={handleSermonGeneration}
+                            disabled={!selectedRecommendation || isSermonLoading || remainingSermons <= 0}
+                            className="w-full py-5 bg-red-600 text-white font-black text-2xl rounded-2xl shadow-2xl hover:bg-red-700 active:scale-95 transition-all disabled:opacity-40 flex items-center justify-center"
+                        >
+                            {isSermonLoading ? (
+                                <><LoadingSpinner className="mr-2" /> {t('generatingSermon', lang)}</>
+                            ) : (
+                                t('generateSermonFromSelected', lang)
+                            )}
+                        </button>
+                    </div>
+                )}
+
+                {errorMessage && (
+                    <div className="p-4 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-xl flex items-center shadow-lg">
+                        <AlertTriangle className="w-5 h-5 mr-3 flex-shrink-0" />
+                        <span className="text-sm font-medium">{errorMessage}</span>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
 };
 
 export default RealLifeSermonComponent;

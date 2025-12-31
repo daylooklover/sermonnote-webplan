@@ -87,97 +87,77 @@ const SermonDraftModal = ({ onClose, onArchiveSuccess, sermonDraft: initialDraft
 
 
     // 🚨 [복원 및 유지] 아카이브 등록 (공유) 기능 구현 - 카운터 로직 포함
-    const handleRegisterArchive = useCallback(async () => {
-        if (!db || !userId) {
-            safeSetErrorMessage(t('loginToUseFeature', lang) || "로그인이 필요합니다. 설교를 등록할 수 없습니다.");
-            return;
+// SermonDraftModal.js의 handleRegisterArchive 함수 내부 수정
+
+// SermonDraftModal.js 내의 handleRegisterArchive 함수 내부 로직 수정
+
+const handleRegisterArchive = useCallback(async () => {
+    // ... (기존 체크 로직 생략)
+
+try {
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const archiveRef = collection(db, `artifacts/${appId}/public/data/sermon_archive`);
+
+        // 1. [꼬리표 완전 제거] 강해설교, 실생활, 묵상노트 등의 꼬리표와 특수기호를 모두 삭제
+        let cleanBody = sermonDraft
+            .replace(/\[강해설교:\s?/g, '')
+            .replace(/\[실생활 설교:\s?/g, '')
+            .replace(/\[묵상노트:\s?/g, '')
+            .replace(/[\[\]\*\#\-\=_]/g, '')
+            .trim();
+        
+        const lines = cleanBody.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+        
+        let mainTopic = "";
+        let bibleRef = "";
+
+        // 2. [성경 구절 정밀 검색] 본문 전체에서 성경 구절 패턴을 찾습니다.
+        // 한국어와 영어 패턴(예: 창 1:1, Gen 1:1)을 모두 지원합니다.
+        const bibleRegex = /(([가-힣]{1,4}|[a-zA-Z]{2,10})\s?\d{1,3}:\d{1,3}(-\d{1,3})?)/;
+        const match = sermonDraft.match(bibleRegex);
+        if (match) {
+            bibleRef = ` (${match[0]})`; 
         }
 
-        if (!sermonDraft || sermonDraft.trim() === '') {
-            safeSetErrorMessage(t('noSermonDraft', lang) || "설교 초안 내용이 비어있습니다. 등록할 수 없습니다.");
-            return;
+        // 3. [진짜 제목 찾기] 인사말을 제외한 첫 번째 유의미한 텍스트 줄을 선택
+        const greetingKeywords = ['My dear', 'Beloved', 'Dear brothers', '친애하는', '사랑하는', '존경하는', 'Grace and peace'];
+        
+        for (const line of lines) {
+            const isGreeting = greetingKeywords.some(keyword => line.toLowerCase().includes(keyword.toLowerCase()));
+            if (!isGreeting && line.length > 2) {
+                // 구절 정보가 제목에 이미 포함되어 있다면 구절은 떼고 주제만 가져옵니다.
+                mainTopic = line.replace(match ? match[0] : '', '').replace(/[\(\)]/g, '').trim();
+                mainTopic = mainTopic.length > 40 ? mainTopic.substring(0, 40) + "..." : mainTopic;
+                break;
+            }
         }
 
-        setIsArchiving(true);
-        safeSetErrorMessage('');
+        // 4. [최종 제목 결합] "주제 (성경구절)" 형태로 완성
+        const finalTitle = mainTopic ? `${mainTopic}${bibleRef}` : (t('sermonDraftTitle', lang) || "말씀 노트");
 
-        const currentLimit = SHARE_LIMITS[userSubscription] || SHARE_LIMITS.free;
+        await runTransaction(db, async (transaction) => {
+            // ... (카운터 체크 로직 생략)
 
-        if (monthlyShareCount >= currentLimit) {
-            setIsArchiving(false);
-            safeSetErrorMessage(
-                t('shareLimitReached', lang)?.replace('{0}', currentLimit).replace('{1}', userSubscription) 
-                || `월간 공유 등록 제한 횟수(${currentLimit}회)를 초과했습니다. 다음 달에 다시 시도하거나 플랜을 업그레이드하세요.`
-            );
-            return;
-        }
-
-
-        try {
-            const archiveRef = collection(db, `artifacts/${appId}/public/data/sermon_archive`);
-            const counterRef = doc(db, `artifacts/${appId}/users/${userId}/usage_limits`, 'sermon_share_counter');
-
-            await runTransaction(db, async (transaction) => {
-                const counterDoc = await transaction.get(counterRef);
-                const now = new Date();
-                const currentMonth = `${now.getFullYear()}-${now.getMonth() + 1}`;
-                
-                let currentCount = 0;
-                
-                if (counterDoc.exists()) {
-                    const data = counterDoc.data();
-                    if (data.month === currentMonth) {
-                        currentCount = data.count;
-                    } 
-                }
-
-                if (currentCount >= currentLimit) {
-                    throw new Error("Share limit exceeded during transaction.");
-                }
-
-                const newSermonRef = doc(archiveRef); 
-                const titleMatch = sermonDraft.match(/[\s\S]*?\n/);
-                const title = (titleMatch ? titleMatch[0] : sermonDraft.substring(0, 50)).trim() || (t('sermonDraftTitle', lang) || 'AI 설교 초안');
-                const memoToStore = memoText || ''; 
-
-                transaction.set(newSermonRef, {
-                    title: title,
-                    content: sermonDraft,
-                    originalMemo: memoToStore, 
-                    authorId: userId,
-                    sharedAt: serverTimestamp(), 
-                    upvotes: 0,
-                    rebirthCount: 0,
-                    lang: lang,
-                    status: 'shared',
-                });
-
-                transaction.set(counterRef, {
-                    count: currentCount + 1,
-                    month: currentMonth,
-                    lastUpdated: Timestamp.fromDate(now),
-                });
-                
-                setMonthlyShareCount(currentCount + 1);
+            const newSermonRef = doc(archiveRef);
+            transaction.set(newSermonRef, {
+                title: finalTitle, // 🚨 이제 '강해설교:' 없이 깨끗한 주제와 구절만 저장됩니다!
+                content: sermonDraft,
+                user_id: userId,
+                sharedAt: serverTimestamp(),
+                upvotes: 0,
+                rebirthCount: 0,
+                lang: lang,
+                status: 'shared',
             });
-
-            safeSetErrorMessage(t('archiveSuccess', lang) || `✅ 설교 "${title}"이(가) 공유 아카이브에 성공적으로 등록되었습니다. (남은 횟수: ${currentLimit - (monthlyShareCount + 1)}회)`);
             
-            // 모달 닫는 로직 제거 (설교 화면 유지)
-            // if (onArchiveSuccess) { onArchiveSuccess(); } 
+            // ... (카운터 업데이트 로직 생략)
+        });
 
-        } catch (error) {
-            console.error("Error registering sermon to archive:", error);
-            const errorMessage = error.message.includes("Share limit exceeded") 
-                ? (t('shareLimitReached', lang)?.replace('{0}', currentLimit).replace('{1}', userSubscription) || '월간 공유 등록 제한 횟수 초과.')
-                : (t('archiveFailed', lang)?.replace('{0}', error.message) || `설교 아카이브 등록 중 오류가 발생했습니다: ${error.message}`);
-                
-            safeSetErrorMessage(errorMessage);
-        } finally {
-            setIsArchiving(false);
-        }
-    }, [sermonDraft, memoText, userId, db, lang, safeSetErrorMessage, userSubscription, monthlyShareCount, appId]); 
-
+        alert(`✅ 아카이브에 성공적으로 등록되었습니다.`);
+    } catch (error) {
+        console.error("Archive Error:", error);
+    }
+}, [sermonDraft, userId, db, lang, t, appId, monthlyShareCount, userSubscription]);
 
     // 🚨 [FIXED] 인쇄 기능 구현
     const handlePrint = useCallback(() => {

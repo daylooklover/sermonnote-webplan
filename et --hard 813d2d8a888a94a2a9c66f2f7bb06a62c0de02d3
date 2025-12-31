@@ -1,0 +1,47 @@
+[33mcommit 56966a432b71b10faf226015aa0c4764606f1eeb[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: DayLookLover <daylook@example.com>
+Date:   Tue Dec 9 11:46:01 2025 +0900
+
+    Tailwind config 복구 및 불필요한 node_modules 파일 삭제 반영
+
+[33mcommit 813d2d8a888a94a2a9c66f2f7bb06a62c0de02d3[m
+Author: DayLookLover <daylook@example.com>
+Date:   Mon Dec 8 14:59:38 2025 +0900
+
+    first commit for sermonnote project
+
+[33mcommit e64acd92e5df5b57088c9c79c2a9e277856d1d73[m
+Author: DayLookLover <daylook@example.com>
+Date:   Sat Nov 29 19:18:25 2025 +0900
+
+    feat: Complete all multi-language features and fix PolicyModal rendering
+
+[33mcommit 9ded7dbd787fcfce1904375bbfca9ffc29e1c541[m
+Author: DayLookLover <daylook@example.com>
+Date:   Fri Nov 14 13:34:36 2025 +0900
+
+    feat: Initial setup with Authentication and Quick Memo features
+
+[33mcommit cd3ea70837845f4aea909e6a0a17b740e2ef5663[m
+Author: DayLookLover <daylook@example.com>
+Date:   Tue Nov 11 13:23:10 2025 +0900
+
+    Initial commit for sermonnote project
+
+[33mcommit 485adaabb5135501519bd92d13cbbc390a0ee17d[m
+Author: DayLookLover <daylook@example.com>
+Date:   Wed Nov 5 17:23:56 2025 +0900
+
+    feat: All core setup errors resolved and API structure ready. Firebase/Auth fixed, added /api/assistant-chat/route.js
+
+[33mcommit bacf1672b3bdfb6491f4123a5aa84455d2fee2fa[m
+Author: DayLookLover <daylook@example.com>
+Date:   Wed Nov 5 16:41:47 2025 +0900
+
+    Clean initial commit without large files
+
+[33mcommit 6ff77f311a731fff51caf1fa8be7efbbcb126388[m
+Author: daylooklover <mmca333@naver.com>
+Date:   Tue Nov 11 13:21:08 2025 +0900
+
+    Initial commit
